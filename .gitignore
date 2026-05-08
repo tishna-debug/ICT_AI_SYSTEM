@@ -1,0 +1,43 @@
+# Python cache
+_pycache_/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual environment
+venv/
+
+# Environment variables
+.env
+
+# Logs
+11_LOGS/
+*.log
+
+# Data
+04_DATA/raw/
+04_DATA/processed/
+
+# Snapshots
+09_SNAPSHOTS/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# VS Code
+.vscode/
+
+# Testing
+.pytest_cache/
+
+# Temporary files
+tmp/
+temp/
+
+# Build artifacts
+dist/
+build/
+
+# OS files
+.DS_Store
+Thumbs.db
