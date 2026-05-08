@@ -16,4 +16,6 @@ Institutional-grade AI trading architecture based on ICT concepts, event-driven 
 
 ## Current Phase
 
-Phase 1 — Engineering Environment Initialization
+Phase 1 — Engineering Environment Initialization 
+
+

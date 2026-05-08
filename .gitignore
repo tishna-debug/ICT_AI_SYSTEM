@@ -41,3 +41,11 @@ build/
 # OS files
 .DS_Store
 Thumbs.db
+
+# Secrets
+secrets.json
+*.pem
+*.key
+
+# Runtime logs
+11_LOGS/*.log

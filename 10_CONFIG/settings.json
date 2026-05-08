@@ -1,0 +1,14 @@
+{
+    "project": {
+        "name": "ICT AI Trading Intelligence System",
+        "version": "1.0.0",
+        "environment": "development",
+        "debug": true
+    },
+
+    "logging": {
+        "log_directory": "11_LOGS",
+        "log_file": "system.log",
+        "log_level": "INFO"
+    }
+}
