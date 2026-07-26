@@ -78,10 +78,12 @@ These are the exact, mathematical rules the system checks. This section is the *
 |---|---|---|---|
 | Candle (base unit) | Defined | Standard OHLC candle model | `engine/rules/base.py` |
 | Displacement | Defined | Threshold-based, tied to average range | `engine/rules/base.py` |
-| Fair Value Gap (FVG) | Defined | Body must close within a **50–60% fill threshold** (band, not fixed — width adjusts with volatility, measured via **14-period ATR on the same timeframe as the FVG being evaluated**) to count as mitigated. **Exception:** on HTF entries of 15M/5M, a full 100% wick fill is also accepted as mitigation. | `engine/rules/fvg.py` |
+| Swing Points | Defined | Local high/low confirmed by `SWING_LOOKBACK` candles each side; degree (MAJOR/MINOR) scored by confirming-candle strength, not discretion | `engine/rules/swings.py` |
+| Fair Value Gap (FVG) | Defined | Full mitigation requires a candle **close** beyond the gap's far edge (wicks don't count); the **50–60% fill band** only governs the *additional* `STRONG` confidence tag on a partial fill (width adjusts with volatility, measured via **14-period ATR on the same timeframe as the FVG being evaluated**). **Exception:** on HTF entries of 15M/5M, a full 100% wick fill is also accepted as mitigation. | `engine/rules/fvg.py` |
 | Break of Structure (BOS) | Defined | **Requires candle close beyond the level** (wick alone does not count) | `engine/rules/bos.py` |
 | Change of Character (CHOCH) | Defined | Structural shift definition, distinct from BOS | `engine/rules/choch.py` |
 | Liquidity Sweep | Defined | Wick-based raid of prior high/low, followed by rejection | `engine/rules/liquidity_sweep.py` |
+| Market Structure State | Defined | Master per-symbol/timeframe state object; assembled from all concepts above on every new candle, with a deterministic content hash for replay verification | `engine/rules/structure_state.py` |
 | Kill Zone filter | Defined | Only London and New York sessions are valid trading windows. Within NY, **9:30–10:00 AM EST is the flagged high-volatility sub-window**, weighted accordingly. Setups outside these windows are filtered or heavily downweighted. | `engine/rules/base.py` (session filter) |
 | HTF Bias Cascade | Defined | **Primary check:** bias aligned across **Daily → 4H → 1H → 15M** = full-confidence setup. **Fallback check:** if 4-way alignment fails, drop 4H and check **Daily → 1H → 15M** instead — if aligned, still tradeable but flagged lower-confidence. **Entries taken on 5M, 3M, or 1M** once bias (primary or fallback) is confirmed. | `engine/rules/bias_cascade.py` |
 
@@ -126,13 +128,16 @@ project/
 ├── engine/
 │   ├── __init__.py
 │   ├── mt5_bridge.py          # Live MT5 tick connection & price candle extraction
+│   ├── event_bus.py           # Synchronous pub/sub for engine/rules/ events (Phase 1 Step 10)
 │   ├── rules/                 # One file per ICT PD array concept — never merged
 │   │   ├── __init__.py
-│   │   ├── base.py            # Shared helpers: OHLC parsing, 14-ATR calc, Kill Zone filter
+│   │   ├── base.py            # Candle model, data quality rules, ATR(14), displacement, Kill Zone filter
+│   │   ├── swings.py          # Swing high/low detection
 │   │   ├── fvg.py
 │   │   ├── bos.py
 │   │   ├── choch.py
 │   │   ├── liquidity_sweep.py
+│   │   ├── structure_state.py # Master StructureState assembly + snapshot/replay (Phase 1 Steps 9 & 11)
 │   │   └── bias_cascade.py
 │   └── ai_evaluator.py        # Anthropic Claude API prompt runner & risk evaluator
 ├── alerts/
@@ -145,7 +150,8 @@ project/
 ├── scripts/
 │   ├── setup_environment.py   # One-click directory & file builder
 │   ├── test_mt5.py            # Diagnostic script to verify MT5 connection
-│   └── backup_system.py       # Zips project (excluding .env), prunes old backups, can push to a cloud-synced folder
+│   ├── backup_system.py       # Zips project (excluding .env), prunes old backups, can push to a cloud-synced folder
+│   └── validation_harness.py  # Section 9 precision/recall/F1 scoring against hand-labeled charts (Phase 1 Step 12)
 ├── requirements.txt            # Exact Python dependency list, for reliable reinstall
 ├── .env                        # API keys (ANTHROPIC_API_KEY, TELEGRAM_BOT_TOKEN, MT5 credentials) — never shared, never backed up
 ├── .env.example                 # Safe template with blank values, for sharing with a programmer
