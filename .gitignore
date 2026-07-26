@@ -1,0 +1,17 @@
+# Secrets — never upload
+.env
+
+# Logs and backups — local only
+logs/
+backups/
+
+# Local data — optional, keep private history off GitHub
+data/price_logs/
+
+# Python cache files
+__pycache__/
+*.pyc
+
+# OS/editor clutter
+.DS_Store
+Thumbs.db
