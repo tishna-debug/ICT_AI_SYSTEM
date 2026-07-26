@@ -31,20 +31,30 @@ Full design docs (keep these next to this folder, don't lose them):
    pip install -r requirements.txt
    ```
    (`MetaTrader5` only installs on Windows — that's expected and fine.)
-7. **Run the environment check:**
+7. **See it actually work — run the demo:**
    ```
-   python scripts/verify_setup.py
+   python scripts/demo_run.py
    ```
-   You should see `ALL CHECKS PASSED` at the end. If you do, your coding
-   environment is correctly wired up — Python, the folder structure, and
-   the rule engine all talk to each other correctly.
-8. **Run the orchestrator stub:**
+   This feeds a small made-up price story through the rule engine and
+   prints, in plain English, what it detects (swing points, Fair Value
+   Gaps, Break of Structure, etc). No real market data or broker
+   connection needed — if this prints output without errors, your setup
+   is correct and the engine is working.
+8. **Run the automated test suite:**
    ```
-   python main.py
+   pytest
    ```
+   This runs every check the engine needs to pass — Candle math, ATR,
+   every ICT rule, the full state machine. You should see something like
+   `51 passed` at the end with no failures. Run this any time after a
+   code change to confirm nothing broke.
 
-If both of those run without errors, you're done with setup. Nothing here
-touches real money, a real broker, or the internet yet.
+Note: `main.py` (the script that would eventually run this live against
+real prices) is still an empty placeholder — that's expected at this
+stage, not a bug. It gets built once the MT5 price connection (Build Step
+1 below) is wired up.
+
+Nothing above touches real money, a real broker, or the internet.
 
 ---
 
@@ -61,6 +71,8 @@ rulebook exactly:
 - `engine/rules/structure_state.py` — master StructureState assembly, snapshot save/load, and replay
 - `engine/event_bus.py` — synchronous pub/sub for all `engine/rules/` events
 - `scripts/validation_harness.py` — Section 9 precision/recall/F1 scoring tool (needs your hand-labeled chart data to run against — see the script's docstring)
+- `scripts/demo_run.py` — plain-English demo on made-up sample data (see "First-time setup" above)
+- `tests/` — automated test suite (`pytest`), 51 tests covering every rule above
 
 **Stubs only** — intentionally not built yet, per the Master Doc's build order:
 - `engine/rules/bias_cascade.py` — HTF Bias Cascade (Addendum A)

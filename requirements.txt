@@ -1,6 +1,9 @@
 # Core — needed for Build Step 1 (engine/rules) and scripts/verify_setup.py
 python-dateutil==2.9.0.post0
 
+# Testing — runs the tests/ suite (pytest) and scripts/demo_run.py
+pytest==8.3.3
+
 # Build Step 1+: live MT5 connection (Windows only)
 MetaTrader5==5.0.4993
 
