@@ -52,18 +52,29 @@ touches real money, a real broker, or the internet yet.
 
 **Already implemented** (real code, not placeholders), matching the
 rulebook exactly:
-- `engine/rules/base.py` — Candle model, ATR, Displacement, Swing Points, Kill Zone filter
+- `engine/rules/base.py` — Candle model, data quality validation, ATR(14), Displacement
+- `engine/rules/swings.py` — Swing Point detection (high/low, strength, MAJOR/MINOR degree)
 - `engine/rules/fvg.py` — Fair Value Gap detection + mitigation + Addendum A confidence scoring
-- `engine/rules/bos.py` — Break of Structure + TrendState
+- `engine/rules/bos.py` — Break of Structure + TrendState machine
 - `engine/rules/choch.py` — Change of Character classification
 - `engine/rules/liquidity_sweep.py` — Liquidity Sweep detection
-- `engine/rules/bias_cascade.py` — HTF Bias Cascade (Addendum A)
+- `engine/rules/structure_state.py` — master StructureState assembly, snapshot save/load, and replay
+- `engine/event_bus.py` — synchronous pub/sub for all `engine/rules/` events
+- `scripts/validation_harness.py` — Section 9 precision/recall/F1 scoring tool (needs your hand-labeled chart data to run against — see the script's docstring)
 
 **Stubs only** — intentionally not built yet, per the Master Doc's build order:
+- `engine/rules/bias_cascade.py` — HTF Bias Cascade (Addendum A)
 - `engine/mt5_bridge.py` — live price connection (Build Step 1)
 - `alerts/telegram_bot.py` — phone alerts (Build Step 2)
 - `engine/ai_evaluator.py` — Claude API verdicts (Build Step 3)
 - `interface/dashboard.py` — Streamlit dashboard (Build Step 5)
+
+**Known open item:** the Phase 1 rulebook's own Liquidity Sweep recovery-ratio
+formula (Section 7.2) is structurally unable to produce a "MESSY" sweep
+classification — given its condition 2 (`close` back inside the level),
+the recovery ratio is mathematically always ≥ 1.0, so every detected sweep
+classifies as "CLEAN". Implemented literally per your instruction; flagged
+here in case it matters once you validate against real charts.
 
 ## Build roadmap (Master Doc, Section 11 — build in this order)
 

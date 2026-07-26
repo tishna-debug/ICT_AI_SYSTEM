@@ -1,0 +1,65 @@
+{
+  "_comment": "Mirrors the constants defined in engine/rules/*.py (Phase 1 rulebook Section 0 + Addendum A). Not yet wired up for runtime tuning - the code currently uses its own hardcoded defaults. Keep both in sync if you change a threshold.",
+
+  "candle": {
+    "atr_period": 14
+  },
+
+  "displacement": {
+    "min_displacement_body_ratio": 0.60,
+    "min_displacement_atr_multiplier": 1.5
+  },
+
+  "swing_points": {
+    "swing_lookback": 5,
+    "min_swing_strength": 2
+  },
+
+  "fvg": {
+    "min_fvg_ticks": 3,
+    "min_displacement_score": 0.55,
+    "max_fvg_age_candles": 50,
+    "fvg_strong_fill_band_min": 0.50,
+    "fvg_strong_fill_band_max": 0.60,
+    "atr_baseline_period": 50,
+    "fvg_htf_wick_exception_timeframes": ["M15", "M5"]
+  },
+
+  "bos_choch": {
+    "bos_requires_close": true,
+    "min_bos_displacement": 0.5,
+    "choch_high_displacement_threshold": 0.75
+  },
+
+  "liquidity_sweep": {
+    "sweep_wick_ratio": 0.30,
+    "sweep_recovery_ratio": 0.50,
+    "sweep_clean_recovery_ratio": 0.70,
+    "sweep_fvg_combo_confidence_bonus": 0.15
+  },
+
+  "kill_zones": {
+    "london_kill_zone_start": "02:00",
+    "london_kill_zone_end": "05:00",
+    "ny_kill_zone_start": "08:00",
+    "ny_kill_zone_end": "11:00",
+    "ny_hot_window_start": "09:30",
+    "ny_hot_window_end": "10:00",
+    "kill_zone_mode": "filter"
+  },
+
+  "htf_bias_cascade": {
+    "primary_bias_timeframes": ["D", "H4", "H1", "M15"],
+    "fallback_bias_timeframes": ["D", "H1", "M15"],
+    "entry_timeframes": ["M5", "M3", "M1"]
+  },
+
+  "validation": {
+    "fvg_min_precision": 0.90,
+    "bos_min_precision": 0.85,
+    "choch_min_precision": 0.85,
+    "swing_min_precision": 0.90,
+    "sweep_min_precision": 0.80,
+    "regression_drop_threshold": 0.02
+  }
+}
