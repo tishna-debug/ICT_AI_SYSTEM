@@ -4,7 +4,7 @@
 
 **Owner:** Non-technical trader/operator. Does not write or manage code, servers, or databases directly. All technical work is delegated.
 
-**Status:** Architecture, rule layer, and folder structure fully specified. Ready to begin Step 1 of the build (`engine/rules/` modules). This document is the anchor for every future update.
+**Status:** `engine/rules/` (all Phase 1 ICT concepts) and `engine/mt5_bridge.py` (live price connection) are built and tested. Next: `alerts/telegram_bot.py` (Build Step 2). This document is the anchor for every future update.
 
 ---
 

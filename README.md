@@ -46,15 +46,28 @@ Full design docs (keep these next to this folder, don't lose them):
    ```
    This runs every check the engine needs to pass — Candle math, ATR,
    every ICT rule, the full state machine. You should see something like
-   `51 passed` at the end with no failures. Run this any time after a
+   `58 passed` at the end with no failures. Run this any time after a
    code change to confirm nothing broke.
+9. **Connect to real price data (optional, once you're ready):**
+   - Open the MetaTrader5 desktop app and log into your account (**use a
+     demo account while testing** — nothing in this system places trades,
+     but there's no reason to point it at a live account yet).
+   - Leave it open, then run:
+     ```
+     python scripts/test_mt5.py
+     ```
+   - This confirms the connection, tells you which account it found
+     (double-check it says DEMO), and lists your broker's exact symbol
+     names for US100/US500/Gold so you know what to use later. It never
+     places a trade.
 
-Note: `main.py` (the script that would eventually run this live against
-real prices) is still an empty placeholder — that's expected at this
-stage, not a bug. It gets built once the MT5 price connection (Build Step
-1 below) is wired up.
+Note: `main.py` (the script that will eventually tie the live price feed
+to the rule engine automatically) is still an empty placeholder — that's
+expected at this stage, not a bug. Steps 2+ of the build order (Telegram
+alerts, then AI verdicts) come before that gets wired up.
 
-Nothing above touches real money, a real broker, or the internet.
+Nothing above touches real money. Step 9 does talk to your MT5 terminal,
+but only to read prices — no order is ever sent.
 
 ---
 
@@ -72,11 +85,18 @@ rulebook exactly:
 - `engine/event_bus.py` — synchronous pub/sub for all `engine/rules/` events
 - `scripts/validation_harness.py` — Section 9 precision/recall/F1 scoring tool (needs your hand-labeled chart data to run against — see the script's docstring)
 - `scripts/demo_run.py` — plain-English demo on made-up sample data (see "First-time setup" above)
-- `tests/` — automated test suite (`pytest`), 51 tests covering every rule above
+- `engine/mt5_bridge.py` — live price connection (Build Step 1). Attaches to
+  a MetaTrader5 desktop terminal you're already logged into by hand — no
+  account password is ever read, stored, or requested by this code. Only
+  reads price data; never places, modifies, or closes a trade.
+- `scripts/test_mt5.py` — run this after opening/logging into MT5 to check
+  the connection and find your broker's exact symbol names for US100/US500/Gold
+- `engine/logging_config.py` — shared logger setup (writes to `logs/`), used
+  by `mt5_bridge.py` and every future module that needs to fail without crashing
+- `tests/` — automated test suite (`pytest`), 58 tests covering every rule above
 
 **Stubs only** — intentionally not built yet, per the Master Doc's build order:
 - `engine/rules/bias_cascade.py` — HTF Bias Cascade (Addendum A)
-- `engine/mt5_bridge.py` — live price connection (Build Step 1)
 - `alerts/telegram_bot.py` — phone alerts (Build Step 2)
 - `engine/ai_evaluator.py` — Claude API verdicts (Build Step 3)
 - `interface/dashboard.py` — Streamlit dashboard (Build Step 5)
