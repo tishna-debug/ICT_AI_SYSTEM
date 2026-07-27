@@ -219,12 +219,15 @@ Lives in `engine/ai_evaluator.py` — build only after the rule engine and Teleg
 
 ## 6. Build order — do not skip or reorder
 
-1. ✅ **`engine/rules/`** — all ICT detection modules (Candle → ATR → Displacement → Swing → FVG → BOS/TrendState → CHOCH → Sweep → StructureState → event bus → replay/validation harness). Built and tested (66 automated tests, `pytest`). No AI, no interface yet.
+1. ✅ **`engine/rules/`** — all ICT detection modules (Candle → ATR → Displacement → Swing → FVG → BOS/TrendState → CHOCH → Sweep → StructureState → event bus → replay/validation harness), plus Addendum A's Kill Zone filter and HTF Bias Cascade (`engine/rules/bias_cascade.py`). Built and tested (88 automated tests, `pytest`). No interface yet.
 2. ✅ **`engine/mt5_bridge.py`** — live price connection. Attaches to an MT5 terminal you're already logged into by hand (no credentials stored anywhere); read-only, never places a trade. Diagnostic: `scripts/test_mt5.py`. Live watcher: `scripts/watch_live.py` (currently watching `USTEC` = US100/Nasdaq-100 on the owner's broker).
-3. ✅ **`alerts/telegram_bot.py`** — sends detected signals to the owner's phone via Telegram. Uses the plain HTTP API directly (no extra package - alerts are one-way only). Credentials in `.env`. Diagnostic: `scripts/test_telegram.py`.
-4. **`engine/ai_evaluator.py`** *(next)* — Anthropic API Buy/Sell/No-Trade verdict + reasoning, called only on confirmed setups.
-5. **Context layer** — news, volatility, sentiment, Fear & Greed, FOMO feeding into the verdict.
-6. **`interface/dashboard.py`** — Streamlit, built last, once the underlying signal is proven.
+3. ✅ **`alerts/telegram_bot.py`** — sends detected signals to the owner's phone via Telegram. Uses the plain HTTP API directly (no extra package - alerts are one-way only). Credentials in `.env`. Diagnostic: `scripts/test_telegram.py`. **Blocked on the owner's network**: Telegram's servers appear blocked at the ISP level (confirmed: general internet works, `api.telegram.org` connection times out even over the owner's VPN attempt) - code is done and tested, just needs a network that can reach Telegram to verify live.
+4. ✅ **`engine/ai_evaluator.py`** — turns a confirmed, eligible setup (per `bias_cascade.is_setup_eligible_for_ai`) into a Buy/Sell/No-Trade verdict with written reasoning via the Claude API. Never places a trade. Logs to `data/verdicts.json`. Diagnostic: `scripts/test_ai_evaluator.py` *(not yet run live - owner still needs to get an API key from console.anthropic.com and add it to `.env`)*.
+5. **`main.py`** *(next)* — wires the above into one always-on process: live candles in, rule engine, eligible setups out to the AI evaluator, verdicts out to Telegram.
+6. **Context layer** — news, volatility, sentiment, Fear & Greed, FOMO feeding into the verdict (not yet wired into `ai_evaluator.py` - needs providers picked first).
+7. **`interface/dashboard.py`** — Streamlit, built last, once the underlying signal is proven.
+
+**Security note (fixed 2026-07-28):** `.env` was accidentally tracked in git since the very first commit (the `.gitignore` rule for it only applies to files not yet tracked). Confirmed nothing sensitive was ever actually committed (it was empty in every commit), but it's been untracked now (`git rm --cached`) so `.gitignore` actually protects it going forward. If you ever add a new secret-holding file, double check `git status` shows it as untracked before assuming `.gitignore` covers it.
 7. **(Later, optional)** Expand instruments, add Phase 2 ICT concepts, revisit database only if scale genuinely requires it.
 
 ### Validation benchmarks (must pass before moving to the next concept)
