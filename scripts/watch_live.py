@@ -42,7 +42,7 @@ from engine.rules.fvg import ATR_BASELINE_PERIOD
 from engine.rules.structure_state import StructureStateEngine, replay
 
 # --- Edit these two to watch something else ---
-SYMBOL = "GOLD.NYSE-24"
+SYMBOL = "USTEC"  # "US Tech 100 Index" on this broker - the US100/Nasdaq-100 CFD
 TIMEFRAME = "M5"
 # ------------------------------------------------
 
