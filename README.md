@@ -60,13 +60,27 @@ Full design docs (keep these next to this folder, don't lose them):
      (double-check it says DEMO), and lists your broker's exact symbol
      names for US100/US500/Gold so you know what to use later. It never
      places a trade.
+10. **Watch it work on real live prices (optional):** with MT5 still open,
+    run:
+    ```
+    python scripts/watch_live.py
+    ```
+    This watches one real symbol (edit the `SYMBOL`/`TIMEFRAME` constants
+    near the top of the file to change which one) and prints detected
+    patterns to this terminal as real candles close. It loads some recent
+    history first so it isn't starting from nothing, then keeps watching
+    until you stop it with **Ctrl+C**. Still read-only — never places a
+    trade. This is *not* the same as a finished "always-on" system (that's
+    `main.py`, still to come) — it's a way to watch the engine work on
+    real prices today, in a terminal window you keep open.
 
 Note: `main.py` (the script that will eventually tie the live price feed
-to the rule engine automatically) is still an empty placeholder — that's
-expected at this stage, not a bug. Steps 2+ of the build order (Telegram
-alerts, then AI verdicts) come before that gets wired up.
+to the rule engine automatically, run continuously in the background, and
+send alerts) is still an empty placeholder — that's expected at this
+stage, not a bug. Steps 2+ of the build order (Telegram alerts, then AI
+verdicts) come before that gets wired up.
 
-Nothing above touches real money. Step 9 does talk to your MT5 terminal,
+Nothing above touches real money. Steps 9-10 talk to your MT5 terminal,
 but only to read prices — no order is ever sent.
 
 ---
@@ -91,9 +105,14 @@ rulebook exactly:
   reads price data; never places, modifies, or closes a trade.
 - `scripts/test_mt5.py` — run this after opening/logging into MT5 to check
   the connection and find your broker's exact symbol names for US100/US500/Gold
+- `scripts/watch_live.py` — watches one real symbol/timeframe on your MT5
+  account and prints detected patterns live in your terminal, read-only
+  (see "First-time setup" step 10 above)
 - `engine/logging_config.py` — shared logger setup (writes to `logs/`), used
   by `mt5_bridge.py` and every future module that needs to fail without crashing
-- `tests/` — automated test suite (`pytest`), 58 tests covering every rule above
+- `engine/event_narration.py` — turns a raw detection event into a one-line
+  plain-English description; shared by `demo_run.py` and `watch_live.py`
+- `tests/` — automated test suite (`pytest`), 61 tests covering every rule above
 
 **Stubs only** — intentionally not built yet, per the Master Doc's build order:
 - `engine/rules/bias_cascade.py` — HTF Bias Cascade (Addendum A)
