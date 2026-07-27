@@ -109,22 +109,40 @@ Full design docs (keep these next to this folder, don't lose them):
       ```
       This sends one sample setup to Claude and prints back a Buy/Sell/
       No-Trade verdict with reasoning — confirms your key and billing work.
-13. **Run the always-on system:**
+13. **Set up news/sentiment context (optional, Build Step 4 — free):**
+    - Sign up free at https://financialmodelingprep.com and get an API key.
+    - Add it to `.env`:
+      ```
+      FMP_API_KEY=...
+      ```
+    - Test it:
+      ```
+      python scripts/test_context_layer.py
+      ```
+      This fetches real news headlines and today's high-impact US economic
+      events, and prints the sentiment score derived from them. AI
+      verdicts work fine without this step — they just won't have news
+      context to weigh. (Volatility state and the FOMO risk heuristic
+      need no external service at all — they're always on.)
+14. **Run the always-on system:**
     ```
     python main.py
     ```
     This is the real thing: connects to MT5, watches your entry timeframe
     plus the four higher timeframes the HTF Bias Cascade needs, and for
     every confirmed setup that's both inside a valid Kill Zone and aligned
-    with the higher-timeframe bias, asks Claude for a verdict and sends it
-    to your phone. Everything else (raw signal alerts, heartbeat file at
-    `data/status.json`, verdict log at `data/verdicts.json`) happens
-    automatically. Stop it any time with **Ctrl+C**.
+    with the higher-timeframe bias, asks Claude for a verdict — now
+    weighing volatility, FOMO risk, and (if step 13 is set up) news/
+    sentiment too — and sends it to your phone. Everything else (raw
+    signal alerts, heartbeat file at `data/status.json`, verdict log at
+    `data/verdicts.json`) happens automatically. Stop it any time with
+    **Ctrl+C**.
 
-Nothing above touches real money or places a trade. Steps 9-10 and 13
-talk to your MT5 terminal only to read prices. Step 11 (and 13's alerts)
-only send messages to your own Telegram chat. Step 12 (and 13's verdicts)
-only ask Claude for a written opinion — nothing ever acts on it.
+Nothing above touches real money or places a trade. Steps 9-10 and 14
+talk to your MT5 terminal only to read prices. Step 11 (and 14's alerts)
+only send messages to your own Telegram chat. Step 12 (and 14's verdicts)
+only ask Claude for a written opinion — nothing ever acts on it. Step 13
+only reads public news headlines.
 
 ---
 
@@ -172,10 +190,21 @@ rulebook exactly:
   read. Logs every verdict to `data/verdicts.json`.
 - `scripts/test_ai_evaluator.py` — sends one sample setup to Claude and
   prints the verdict, to confirm your API key/billing work
+- `engine/context_layer.py` — the Context Layer (Build Step 4): volatility
+  state and the FOMO risk heuristic need no external service (derived from
+  price data already flowing through the engine); news + economic
+  calendar come from Financial Modeling Prep's free tier, with sentiment
+  derived from those same headlines via simple keyword scoring. Fear &
+  Greed is intentionally left unimplemented — no reliable free official
+  API exists for the US equity version, and the rulebook itself says it's
+  "contextual, not a hard veto," so a permanently-missing reading degrades
+  gracefully by design.
+- `scripts/test_context_layer.py` — fetches real news/sentiment to
+  confirm your FMP key works
 - `main.py` — the always-on orchestrator: MT5 candles in, multi-timeframe
-  rule engine, Kill Zone + HTF Bias Cascade gating, AI verdicts and
-  Telegram alerts out (see "First-time setup" step 13 above)
-- `tests/` — automated test suite (`pytest`), 95 tests covering every rule above
+  rule engine, Kill Zone + HTF Bias Cascade gating, context layer, AI
+  verdicts and Telegram alerts out (see "First-time setup" step 14 above)
+- `tests/` — automated test suite (`pytest`), 106 tests covering every rule above
 
 **Stubs only** — intentionally not built yet, per the Master Doc's build order:
 - `interface/dashboard.py` — Streamlit dashboard (Build Step 5)

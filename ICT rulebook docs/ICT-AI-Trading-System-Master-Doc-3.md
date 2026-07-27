@@ -4,7 +4,7 @@
 
 **Owner:** Non-technical trader/operator. Does not write or manage code, servers, or databases directly. All technical work is delegated.
 
-**Status:** `engine/rules/` (all Phase 1 ICT concepts + Addendum A's Kill Zone filter and HTF Bias Cascade), `engine/mt5_bridge.py` (live price connection), `alerts/telegram_bot.py` (Telegram alerts), `engine/ai_evaluator.py` (Claude API verdicts), and `main.py` (the always-on orchestrator tying all of the above together) are all built and tested — live-verified against the owner's real demo account and API keys. Next: `interface/dashboard.py` (Build Step 5). This document is the anchor for every future update.
+**Status:** `engine/rules/` (all Phase 1 ICT concepts + Addendum A's Kill Zone filter and HTF Bias Cascade), `engine/mt5_bridge.py` (live price connection), `alerts/telegram_bot.py` (Telegram alerts), `engine/ai_evaluator.py` (Claude API verdicts), `engine/context_layer.py` (Section 5's context factors), and `main.py` (the always-on orchestrator tying all of the above together) are all built and tested — live-verified against the owner's real demo account and API keys. Next: `interface/dashboard.py` (Build Step 5). This document is the anchor for every future update.
 
 ---
 
@@ -101,13 +101,13 @@ Answers "should I trust this setup right now?" — sits alongside the ICT rule l
 
 | Factor | Source | What it affects |
 |---|---|---|
-| News events | Free-tier financial news/economic calendar API | Flags high-impact news windows; system defaults to caution or No-Trade around major releases |
-| Volatility state | Derived from live price data (no extra cost) | Feeds the ATR-based FVG threshold; flags abnormal volatility |
-| Sentiment | Free/low-cost sentiment API or aggregated source | Contributes to reasoning, not a hard veto |
-| Fear & Greed level | Public index (free) | Contextual input, not a hard veto |
-| FOMO/crowd behavior risk | Derived heuristic (rapid extension + volume spike + sentiment extreme together) | Flags a setup as "technically valid but high FOMO risk" |
+| News events | Financial Modeling Prep (FMP) free tier — news headlines + economic calendar | Flags high-impact US news within the next hour; the AI system prompt is instructed to weigh this heavily toward caution/No-Trade |
+| Volatility state | Derived from live price data (no extra cost) | Classifies LOW/NORMAL/HIGH/EXTREME from ATR(14) vs. the same rolling baseline Addendum A's FVG confidence scoring uses |
+| Sentiment | Derived from the same FMP headlines via simple bullish/bearish keyword scoring — no second API/signup | Contributes to reasoning, not a hard veto |
+| Fear & Greed level | **Owner's decision: skipped.** No reliable free official API for the US equity index version (unlike crypto) | `get_fear_greed_index()` always returns `None`; the rulebook's own "contextual, not a hard veto" framing means a permanently-missing reading degrades gracefully by design |
+| FOMO/crowd behavior risk | Derived heuristic (rapid extension + volume spike + sentiment extreme together) | Flags a setup as "technically valid but high FOMO risk"; fires on 2 of the 3 factors, since sentiment isn't always available |
 
-**Status:** Defined conceptually, not yet implemented (Build Step 4). `engine/ai_evaluator.py` itself (the core Buy/Sell/No-Trade verdict + reasoning engine) is built and tested - it just doesn't factor in news/volatility/sentiment/Fear & Greed/FOMO yet. Those get wired in as this step's own build task, once picked providers are chosen (see requirements.txt).
+**Status:** Built and tested (`engine/context_layer.py`). Feeds `engine/ai_evaluator.py`'s prompt as a `context_summary` alongside `structure_summary`/`bias_summary`. All failure modes (missing FMP key, network error) degrade gracefully — AI verdicts still work without this layer, just without news/sentiment context.
 
 ---
 

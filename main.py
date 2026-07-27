@@ -35,6 +35,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from alerts.telegram_bot import TelegramNotifier
 from engine.ai_evaluator import AIEvaluator, Verdict, log_verdict
+from engine.context_layer import ContextLayerProvider, build_context_summary, classify_volatility, detect_fomo_risk, get_fear_greed_index
 from engine.logging_config import get_logger
 from engine.mt5_bridge import (
     MT5CandleFeed,
@@ -45,7 +46,7 @@ from engine.mt5_bridge import (
     get_tick_size,
     run_feed,
 )
-from engine.rules.base import Candle, check_kill_zone
+from engine.rules.base import ATR_PERIOD, Candle, atr, check_kill_zone
 from engine.rules.bias_cascade import BiasCascadeEvent, evaluate_bias_cascade, is_setup_eligible_for_ai
 from engine.rules.bos import BOSEvent, TrendState
 from engine.rules.choch import CHOCHEvent
@@ -134,6 +135,7 @@ class TradingOrchestrator:
         tick_size: Optional[float] = None,
         telegram: Optional[TelegramNotifier] = None,
         ai: Optional[AIEvaluator] = None,
+        context: Optional[ContextLayerProvider] = None,
     ):
         self.symbol = symbol
         self.entry_timeframe = entry_timeframe
@@ -141,6 +143,7 @@ class TradingOrchestrator:
         self.tick_size = tick_size
         self.telegram = telegram or TelegramNotifier()
         self.ai = ai or AIEvaluator()
+        self.context = context or ContextLayerProvider()
 
         self.engines: Dict[str, StructureStateEngine] = {}
         self.feeds: Dict[str, MT5CandleFeed] = {}
@@ -193,17 +196,42 @@ class TradingOrchestrator:
             )
             return None
 
-        structure_summary = build_structure_summary(self.engines[self.entry_timeframe])
+        entry_engine = self.engines[self.entry_timeframe]
+        structure_summary = build_structure_summary(entry_engine)
         bias_summary = build_bias_summary(bias_event, kill_zone_event)
+        context_summary = self._build_context_summary(entry_engine)
 
         verdict = self.ai.evaluate(
-            event, self.symbol, self.entry_timeframe, structure_summary=structure_summary, bias_summary=bias_summary
+            event,
+            self.symbol,
+            self.entry_timeframe,
+            structure_summary=structure_summary,
+            bias_summary=bias_summary,
+            context_summary=context_summary,
         )
         log_verdict(verdict)
 
         message = f"AI VERDICT: {verdict.verdict} ({verdict.confidence} confidence)\n\n{verdict.reasoning}"
         self.telegram.send(message)
         return verdict
+
+    def _build_context_summary(self, entry_engine: StructureStateEngine) -> str:
+        """Build Step 4 (Master Doc Section 5): assembles volatility,
+        news, sentiment, Fear & Greed, and the FOMO heuristic into one
+        summary string for the AI prompt. Every piece degrades gracefully
+        on its own (unconfigured FMP key, network error, etc.) - this
+        function itself never raises.
+        """
+        atr14 = atr(entry_engine.candles, ATR_PERIOD)
+        atr_baseline = compute_atr_baseline(entry_engine.candles)
+        volatility = classify_volatility(atr14, atr_baseline)
+
+        news = self.context.get_news_context()
+        sentiment = self.context.get_sentiment_context(news)
+        fear_greed = get_fear_greed_index()
+        fomo = detect_fomo_risk(entry_engine.candles, atr14, sentiment)
+
+        return build_context_summary(volatility, news, sentiment, fear_greed, fomo)
 
     def run(self, poll_interval_seconds: float = POLL_INTERVAL_SECONDS, iterations: Optional[int] = None) -> None:
         run_feed(list(self.feeds.values()), on_candle=self.on_candle, poll_interval_seconds=poll_interval_seconds, iterations=iterations)
@@ -242,6 +270,8 @@ def main() -> int:
         print("\nNote: Telegram isn't configured (see .env.example) - alerts will only be logged, not sent to your phone.")
     if not orchestrator.ai.is_configured():
         print("Note: ANTHROPIC_API_KEY isn't set - confirmed setups will log as NO_TRADE fallbacks instead of real verdicts.")
+    if not orchestrator.context.is_configured():
+        print("Note: FMP_API_KEY isn't set - AI verdicts will skip news/sentiment context (volatility and FOMO still work).")
 
     print(f"\nWarming up on {BACKFILL_CANDLES} candles across {', '.join([ENTRY_TIMEFRAME] + HTF_TIMEFRAMES)}...")
     orchestrator.warm_up()

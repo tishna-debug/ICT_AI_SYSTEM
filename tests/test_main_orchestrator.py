@@ -14,6 +14,7 @@ import pytest
 import main as main_module
 from alerts.telegram_bot import TelegramNotifier
 from engine.ai_evaluator import AIEvaluator
+from engine.context_layer import ContextLayerProvider
 from engine.mt5_bridge import MT5CandleFeed
 from engine.rules.base import Candle, KillZoneEvent
 from engine.rules.bias_cascade import BiasCascadeEvent
@@ -28,6 +29,24 @@ def _no_real_status_file(tmp_path, monkeypatch):
     # on_candle() call triggers it, so this must be redirected for every
     # test in this file, not just the ones that check its content.
     monkeypatch.setattr(main_module, "STATUS_PATH", tmp_path / "status.json")
+
+
+@pytest.fixture(autouse=True)
+def _no_real_env_credentials(monkeypatch):
+    # ContextLayerProvider/TelegramNotifier/AIEvaluator all call
+    # load_dotenv() on construction, which re-reads any real .env file
+    # regardless of api_key=None being passed explicitly (see
+    # tests/test_telegram_bot.py for the same issue). Stub every module's
+    # load_dotenv so these tests behave identically with or without the
+    # owner's real .env present.
+    import engine.ai_evaluator as ai_evaluator
+    import engine.context_layer as context_layer
+    import alerts.telegram_bot as telegram_bot
+
+    for module in (ai_evaluator, context_layer, telegram_bot):
+        monkeypatch.setattr(module, "load_dotenv", lambda *a, **k: None)
+    for var in ("ANTHROPIC_API_KEY", "FMP_API_KEY", "TELEGRAM_BOT_TOKEN", "TELEGRAM_CHAT_ID"):
+        monkeypatch.delenv(var, raising=False)
 
 
 class _FakeHTFEngine:
@@ -72,7 +91,15 @@ def _orchestrator(mk_candle, telegram, ai, htf_trend="BULLISH"):
     candles = _sample_candles(mk_candle)
     entry_engine, _ = replay(candles, symbol="TEST", timeframe="M5", tick_size=0.01, atr_avg50=1.0)
 
-    orch = main_module.TradingOrchestrator(symbol="TEST", entry_timeframe="M5", tick_size=0.01, telegram=telegram, ai=ai)
+    # api_key=None + a transport that would raise if ever called: this
+    # must never touch a real .env's FMP_API_KEY, even after the owner
+    # sets one up for real (same test-isolation lesson as
+    # tests/test_telegram_bot.py's load_dotenv() issue).
+    context = ContextLayerProvider(api_key=None, transport=lambda url: (_ for _ in ()).throw(AssertionError("should not call FMP in tests")))
+
+    orch = main_module.TradingOrchestrator(
+        symbol="TEST", entry_timeframe="M5", tick_size=0.01, telegram=telegram, ai=ai, context=context
+    )
     orch.engines["M5"] = entry_engine
     for tf in main_module.HTF_TIMEFRAMES:
         orch.engines[tf] = _FakeHTFEngine(htf_trend)
