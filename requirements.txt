@@ -1,6 +1,11 @@
 # Core — needed for Build Step 1 (engine/rules) and scripts/verify_setup.py
 python-dateutil==2.9.0.post0
 
+# Kill Zone Filter (engine/rules/base.py) needs the IANA timezone database
+# for DST-aware EST/EDT conversion. Windows doesn't ship this by default
+# (Linux/Mac usually do) - pip install covers it either way.
+tzdata==2026.3
+
 # Testing — runs the tests/ suite (pytest) and scripts/demo_run.py
 pytest==8.3.3
 

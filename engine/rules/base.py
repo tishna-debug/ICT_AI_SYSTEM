@@ -1,19 +1,23 @@
 """
 engine/rules/base.py
 
-Phase 1, Steps 1-3 of the ICT Engineering Rulebook build order:
+Phase 1, Steps 1-3 of the ICT Engineering Rulebook build order, plus the
+Kill Zone Filter from Addendum A (Section A2):
   Step 1 - Candle dataclass + data quality validation
   Step 2 - ATR(14) computation
   Step 3 - Displacement score computation
+  Kill Zone Filter - session-window gating for the AI reasoning layer
 
-Canonical source: ICT-Engineering-Rulebook-Phase1.md, Sections 1-2.
+Canonical sources: ICT-Engineering-Rulebook-Phase1.md, Sections 1-2;
+ICT-Rulebook-Addendum-A.md, Section A2.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, time
 from typing import List, Optional
+from zoneinfo import ZoneInfo
 
 # ---------------------------------------------------------------------------
 # System constants (Section 0 of the rulebook)
@@ -24,6 +28,19 @@ ATR_PERIOD = 14
 # Displacement
 MIN_DISPLACEMENT_BODY_RATIO = 0.60      # Body must be >=60% of total range
 MIN_DISPLACEMENT_ATR_MULTIPLIER = 1.5   # Body must be >=1.5x ATR(14)
+
+# Kill Zones (Addendum A, Section A2) - all times are US Eastern local time
+# (what the rulebook calls "EST"; this uses America/New_York so DST is
+# handled automatically rather than assuming a fixed UTC offset)
+LONDON_KILL_ZONE_START = time(2, 0)
+LONDON_KILL_ZONE_END = time(5, 0)
+NY_KILL_ZONE_START = time(8, 0)
+NY_KILL_ZONE_END = time(11, 0)
+NY_HOT_WINDOW_START = time(9, 30)
+NY_HOT_WINDOW_END = time(10, 0)
+KILL_ZONE_MODE = "filter"  # "filter" = drop setups outside window; "downweight" = tag low confidence instead
+
+_EASTERN = ZoneInfo("America/New_York")
 
 
 # ---------------------------------------------------------------------------
@@ -268,4 +285,64 @@ def build_displacement_event(candle: Candle, atr14: Optional[float]) -> Displace
         is_displaced=is_displaced(candle, atr14),
         displacement_score=displacement_score(candle, atr14),
         direction=candle.direction,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Addendum A, Section A2 - Kill Zone Filter
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class KillZoneEvent:
+    timestamp: datetime
+    in_kill_zone: bool
+    in_hot_window: bool
+    session: str  # "LONDON" | "NY" | "NONE"
+    event_type: str = "KILL_ZONE_CHECKED"
+
+
+def is_in_kill_zone(local_time: time) -> tuple[bool, bool]:
+    """Section A2.3. `local_time` must already be in US Eastern local time
+    (what the rulebook calls "EST") - see check_kill_zone() below for the
+    UTC-candle-timestamp-in, KillZoneEvent-out convenience wrapper.
+
+    Returns (in_kill_zone, in_hot_window). in_hot_window is only
+    meaningful when in_kill_zone is True.
+    """
+    in_london = LONDON_KILL_ZONE_START <= local_time <= LONDON_KILL_ZONE_END
+    in_ny = NY_KILL_ZONE_START <= local_time <= NY_KILL_ZONE_END
+    in_hot = NY_HOT_WINDOW_START <= local_time <= NY_HOT_WINDOW_END
+    return (in_london or in_ny), in_hot
+
+
+def check_kill_zone(timestamp_utc: datetime) -> KillZoneEvent:
+    """Section A2.1/A2.4: takes a candle's UTC timestamp, converts it to US
+    Eastern local time (DST-aware), and reports which session (if any) it
+    falls in. Outside a Kill Zone, setups are still detected/logged (per
+    A2.1, "for the historical record") - it's the caller's job to decide
+    whether to withhold them from the AI layer based on `in_kill_zone`
+    (KILL_ZONE_MODE = "filter" is the canonical choice; "downweight" is
+    the documented alternative, not implemented as a separate code path
+    here since it's just a different caller-side policy on the same flag).
+    """
+    if timestamp_utc.tzinfo is None:
+        timestamp_utc = timestamp_utc.replace(tzinfo=ZoneInfo("UTC"))
+    local_time = timestamp_utc.astimezone(_EASTERN).time()
+
+    in_kill_zone, in_hot_window = is_in_kill_zone(local_time)
+    in_london = LONDON_KILL_ZONE_START <= local_time <= LONDON_KILL_ZONE_END
+
+    if in_london:
+        session = "LONDON"
+    elif in_kill_zone:
+        session = "NY"
+    else:
+        session = "NONE"
+
+    return KillZoneEvent(
+        timestamp=timestamp_utc,
+        in_kill_zone=in_kill_zone,
+        in_hot_window=in_hot_window,
+        session=session,
     )
