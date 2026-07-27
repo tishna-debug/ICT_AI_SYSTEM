@@ -47,6 +47,10 @@ Rules:
 - Cite the SPECIFIC rule(s) that fired (e.g. "bullish FVG created + BOS confirmed off a \
   MAJOR swing") - never give a vague or generic justification.
 - If the evidence is mixed, contradictory, or thin, say NO_TRADE rather than guessing.
+- If context notes HIGH-IMPACT NEWS within the hour, weigh that heavily toward NO_TRADE or \
+  lower confidence, even if the structural setup looks clean - the rulebook treats upcoming \
+  high-impact news as a reason for caution, not just background color. Sentiment, Fear & \
+  Greed, and FOMO risk are informative only, never a hard veto on their own.
 - Keep the reasoning concise (3-6 sentences), in plain English a non-technical trader can \
   follow.
 
@@ -80,11 +84,12 @@ def _default_transport(prompt: str, api_key: str, model: str) -> str:
     return response.content[0].text
 
 
-def _build_prompt(setup_description: str, structure_summary: str, bias_summary: str) -> str:
+def _build_prompt(setup_description: str, structure_summary: str, bias_summary: str, context_summary: str = "") -> str:
     return (
         f"Detected setup:\n{setup_description}\n\n"
         f"Current market structure:\n{structure_summary or '(none provided)'}\n\n"
         f"HTF bias / Kill Zone context:\n{bias_summary or '(none provided)'}\n\n"
+        f"Market context (news/volatility/sentiment/FOMO):\n{context_summary or '(none provided)'}\n\n"
         "Give your verdict now."
     )
 
@@ -130,6 +135,7 @@ class AIEvaluator:
         timeframe: str,
         structure_summary: str = "",
         bias_summary: str = "",
+        context_summary: str = "",
     ) -> Verdict:
         """Turn one confirmed setup into a Buy/Sell/No-Trade verdict with
         reasoning. Never raises.
@@ -142,7 +148,7 @@ class AIEvaluator:
                 symbol, timeframe, setup_description, "AI evaluator not configured (missing API key) - defaulting to NO_TRADE."
             )
 
-        prompt = _build_prompt(setup_description, structure_summary, bias_summary)
+        prompt = _build_prompt(setup_description, structure_summary, bias_summary, context_summary)
 
         try:
             raw = self._transport(prompt, self.api_key, self.model)
