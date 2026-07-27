@@ -50,6 +50,16 @@ def test_feed_returns_none_when_nothing_new():
     assert calls["n"] == 1
 
 
+def test_feed_seeded_with_last_seen_timestamp_ignores_already_processed_candle(mk_candle):
+    already_processed = mk_candle(0, 100, 101, 99, 100.5)
+
+    feed = MT5CandleFeed(
+        "US100", "M5", fetch_fn=lambda s, t: already_processed, last_seen_timestamp=already_processed.timestamp
+    )
+
+    assert feed.poll() is None  # would be a duplicate of what backfill already saw
+
+
 def test_feed_returns_candle_once_then_dedupes(mk_candle):
     same_candle = mk_candle(0, 100, 101, 99, 100.5)
 

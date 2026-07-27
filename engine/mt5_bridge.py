@@ -154,6 +154,18 @@ def ensure_symbol_selected(symbol: str) -> bool:
     return bool(mt5.symbol_select(symbol, True))
 
 
+def get_tick_size(symbol: str) -> Optional[float]:
+    """The broker's minimum price increment for this symbol - what
+    engine.rules.fvg.detect_fvg's `tick_size` argument expects
+    (MIN_FVG_TICKS is measured in units of this). Returns None if the
+    symbol isn't known to the broker.
+    """
+    _require_mt5()
+    ensure_symbol_selected(symbol)
+    info = mt5.symbol_info(symbol)
+    return info.point if info is not None else None
+
+
 def _row_to_candle(row, timeframe: str, symbol: str) -> Candle:
     # MT5's `time` field is UTC seconds-since-epoch on the broker's server
     # clock. Most brokers align this to UTC, but a few run a fixed offset
@@ -205,13 +217,25 @@ class MT5CandleFeed:
     `fetch_fn` defaults to `fetch_latest_closed_candle` (the real MT5
     call) but can be swapped out in tests, so the de-duplication logic
     below is verifiable without a live MT5 connection.
+
+    Pass `last_seen_timestamp` if you've already processed history up to
+    some point (e.g. a backfill via engine.rules.structure_state.replay())
+    - otherwise the very first poll() will re-return that same last
+    historical candle as if it were new, and the engine will correctly
+    (but confusingly) reject it as a duplicate.
     """
 
-    def __init__(self, symbol: str, timeframe: str, fetch_fn: Optional[Callable[[str, str], Optional[Candle]]] = None):
+    def __init__(
+        self,
+        symbol: str,
+        timeframe: str,
+        fetch_fn: Optional[Callable[[str, str], Optional[Candle]]] = None,
+        last_seen_timestamp: Optional[datetime] = None,
+    ):
         self.symbol = symbol
         self.timeframe = timeframe
         self._fetch_fn = fetch_fn or fetch_latest_closed_candle
-        self._last_seen_timestamp: Optional[datetime] = None
+        self._last_seen_timestamp: Optional[datetime] = last_seen_timestamp
 
     def poll(self) -> Optional[Candle]:
         """Returns the newly closed candle if one has appeared since the
