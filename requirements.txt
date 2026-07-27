@@ -7,8 +7,9 @@ pytest==8.3.3
 # Build Step 1+: live MT5 connection (Windows only)
 MetaTrader5==5.0.4993
 
-# Build Step 2: Telegram alerts
-python-telegram-bot==21.4
+# Build Step 2: Telegram alerts - uses the stdlib (urllib) directly for
+# one-way alerts, no extra package needed. python-dotenv below reads
+# TELEGRAM_BOT_TOKEN/TELEGRAM_CHAT_ID from .env.
 
 # Build Step 3: Claude API
 anthropic==0.34.2
