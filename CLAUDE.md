@@ -219,10 +219,10 @@ Lives in `engine/ai_evaluator.py` — build only after the rule engine and Teleg
 
 ## 6. Build order — do not skip or reorder
 
-1. ✅ **`engine/rules/`** — all ICT detection modules (Candle → ATR → Displacement → Swing → FVG → BOS/TrendState → CHOCH → Sweep → StructureState → event bus → replay/validation harness). Built and tested (58 automated tests, `pytest`). No AI, no interface yet.
-2. ✅ **`engine/mt5_bridge.py`** — live price connection. Attaches to an MT5 terminal you're already logged into by hand (no credentials stored anywhere); read-only, never places a trade. Diagnostic: `scripts/test_mt5.py`.
-3. **`alerts/telegram_bot.py`** *(next)* — raw rule-based signals to the owner's phone, to validate rule accuracy in the real world before adding AI cost.
-4. **`engine/ai_evaluator.py`** — Anthropic API Buy/Sell/No-Trade verdict + reasoning, called only on confirmed setups.
+1. ✅ **`engine/rules/`** — all ICT detection modules (Candle → ATR → Displacement → Swing → FVG → BOS/TrendState → CHOCH → Sweep → StructureState → event bus → replay/validation harness). Built and tested (66 automated tests, `pytest`). No AI, no interface yet.
+2. ✅ **`engine/mt5_bridge.py`** — live price connection. Attaches to an MT5 terminal you're already logged into by hand (no credentials stored anywhere); read-only, never places a trade. Diagnostic: `scripts/test_mt5.py`. Live watcher: `scripts/watch_live.py` (currently watching `USTEC` = US100/Nasdaq-100 on the owner's broker).
+3. ✅ **`alerts/telegram_bot.py`** — sends detected signals to the owner's phone via Telegram. Uses the plain HTTP API directly (no extra package - alerts are one-way only). Credentials in `.env`. Diagnostic: `scripts/test_telegram.py`.
+4. **`engine/ai_evaluator.py`** *(next)* — Anthropic API Buy/Sell/No-Trade verdict + reasoning, called only on confirmed setups.
 5. **Context layer** — news, volatility, sentiment, Fear & Greed, FOMO feeding into the verdict.
 6. **`interface/dashboard.py`** — Streamlit, built last, once the underlying signal is proven.
 7. **(Later, optional)** Expand instruments, add Phase 2 ICT concepts, revisit database only if scale genuinely requires it.
