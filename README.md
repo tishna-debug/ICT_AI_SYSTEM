@@ -148,6 +148,19 @@ Full design docs (keep these next to this folder, don't lose them):
     read-only, refreshed on demand or automatically every 10 seconds if
     you check the box. It never controls `main.py`, only displays what
     it's already written to the `data/` files.
+16. **Back up the project (optional, any time):**
+    ```
+    python scripts/backup_system.py
+    ```
+    Zips the whole project — code, docs, and your `data/` history — into
+    `backups/`, timestamped, keeping the most recent 14 and deleting
+    older ones automatically. Never includes `.env` (your secrets stay
+    out of it) or `venv/`/`.git/` (huge and fully reproducible, not worth
+    backing up). Since this project already lives inside OneDrive,
+    `backups/` gets cloud-synced automatically with no extra setup —
+    `CLOUD_BACKUP_FOLDER` in `.env` is only for a *second* copy somewhere
+    else, if you want one. This is separate from GitHub — GitHub backs up
+    the code, this also captures your local `data/`/`logs/` history.
 
 Nothing above touches real money or places a trade. Steps 9-10 and 14
 talk to your MT5 terminal only to read prices. Step 11 (and 14's alerts)
@@ -221,7 +234,10 @@ rulebook exactly:
   read-only view of system status, AI verdicts, detected setups, and
   recent logs, all pulled from the same `data/`/`logs/` files `main.py`
   already writes (see "First-time setup" step 15 above)
-- `tests/` — automated test suite (`pytest`), 114 tests covering every rule above
+- `scripts/backup_system.py` — zips the project (excluding secrets and
+  reproducible junk) into `backups/`, prunes old ones, optional second
+  copy to a `CLOUD_BACKUP_FOLDER` (see "First-time setup" step 16 above)
+- `tests/` — automated test suite (`pytest`), 122 tests covering every rule above
 
 All Phase 1 + Build Steps 1-5 are now implemented. What's left is Phase 2
 ICT concepts (Order Blocks, Breaker Blocks, OTE, Judas Swing, Power of
