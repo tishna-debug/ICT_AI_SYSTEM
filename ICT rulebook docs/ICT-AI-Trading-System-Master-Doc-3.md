@@ -4,7 +4,7 @@
 
 **Owner:** Non-technical trader/operator. Does not write or manage code, servers, or databases directly. All technical work is delegated.
 
-**Status:** `engine/rules/` (all Phase 1 ICT concepts + Addendum A's Kill Zone filter and HTF Bias Cascade), `engine/mt5_bridge.py` (live price connection), `alerts/telegram_bot.py` (Telegram alerts), and `engine/ai_evaluator.py` (Claude API verdicts) are all built and tested. Next: `main.py` (tying it all together into one always-on process), then `interface/dashboard.py` (Build Step 5). This document is the anchor for every future update.
+**Status:** `engine/rules/` (all Phase 1 ICT concepts + Addendum A's Kill Zone filter and HTF Bias Cascade), `engine/mt5_bridge.py` (live price connection), `alerts/telegram_bot.py` (Telegram alerts), `engine/ai_evaluator.py` (Claude API verdicts), and `main.py` (the always-on orchestrator tying all of the above together) are all built and tested — live-verified against the owner's real demo account and API keys. Next: `interface/dashboard.py` (Build Step 5). This document is the anchor for every future update.
 
 ---
 

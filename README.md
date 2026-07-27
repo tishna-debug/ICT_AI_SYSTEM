@@ -109,16 +109,22 @@ Full design docs (keep these next to this folder, don't lose them):
       ```
       This sends one sample setup to Claude and prints back a Buy/Sell/
       No-Trade verdict with reasoning — confirms your key and billing work.
+13. **Run the always-on system:**
+    ```
+    python main.py
+    ```
+    This is the real thing: connects to MT5, watches your entry timeframe
+    plus the four higher timeframes the HTF Bias Cascade needs, and for
+    every confirmed setup that's both inside a valid Kill Zone and aligned
+    with the higher-timeframe bias, asks Claude for a verdict and sends it
+    to your phone. Everything else (raw signal alerts, heartbeat file at
+    `data/status.json`, verdict log at `data/verdicts.json`) happens
+    automatically. Stop it any time with **Ctrl+C**.
 
-Note: `main.py` (the script that will eventually tie the live price feed,
-the rule engine, Telegram alerts, and AI verdicts together into one
-always-on process) is still an empty placeholder — that's expected at
-this stage, not a bug.
-
-Nothing above touches real money or places a trade. Steps 9-10 talk to
-your MT5 terminal only to read prices. Step 11 only sends messages to
-your own Telegram chat. Step 12 only asks Claude for a written opinion —
-it never acts on it.
+Nothing above touches real money or places a trade. Steps 9-10 and 13
+talk to your MT5 terminal only to read prices. Step 11 (and 13's alerts)
+only send messages to your own Telegram chat. Step 12 (and 13's verdicts)
+only ask Claude for a written opinion — nothing ever acts on it.
 
 ---
 
@@ -166,11 +172,13 @@ rulebook exactly:
   read. Logs every verdict to `data/verdicts.json`.
 - `scripts/test_ai_evaluator.py` — sends one sample setup to Claude and
   prints the verdict, to confirm your API key/billing work
-- `tests/` — automated test suite (`pytest`), 88 tests covering every rule above
+- `main.py` — the always-on orchestrator: MT5 candles in, multi-timeframe
+  rule engine, Kill Zone + HTF Bias Cascade gating, AI verdicts and
+  Telegram alerts out (see "First-time setup" step 13 above)
+- `tests/` — automated test suite (`pytest`), 95 tests covering every rule above
 
 **Stubs only** — intentionally not built yet, per the Master Doc's build order:
 - `interface/dashboard.py` — Streamlit dashboard (Build Step 5)
-- `main.py` — the always-on orchestrator tying the above modules together
 
 **Known open item:** the Phase 1 rulebook's own Liquidity Sweep recovery-ratio
 formula (Section 7.2) is structurally unable to produce a "MESSY" sweep
