@@ -25,10 +25,12 @@ from engine.rules.structure_state import replay
 
 @pytest.fixture(autouse=True)
 def _no_real_status_file(tmp_path, monkeypatch):
-    # write_status() defaults to the real data/status.json - every
-    # on_candle() call triggers it, so this must be redirected for every
-    # test in this file, not just the ones that check its content.
+    # write_status()/log_setup() default to the real data/status.json and
+    # data/setups.json - every on_candle() call triggers both, so this
+    # must be redirected for every test in this file, not just the ones
+    # that check their content.
     monkeypatch.setattr(main_module, "STATUS_PATH", tmp_path / "status.json")
+    monkeypatch.setattr(main_module, "SETUPS_PATH", tmp_path / "setups.json")
 
 
 @pytest.fixture(autouse=True)
@@ -108,6 +110,64 @@ def _orchestrator(mk_candle, telegram, ai, htf_trend="BULLISH"):
 
 def _feed(tf):
     return MT5CandleFeed("TEST", tf, fetch_fn=lambda s, t: None)
+
+
+def test_log_setup_appends_records(tmp_path, monkeypatch):
+    path = tmp_path / "setups.json"
+    monkeypatch.setattr(main_module, "SETUPS_PATH", path)
+
+    candle = _breakout_candle()
+    from engine.rules.bos import BreakOfStructure
+
+    bos = BreakOfStructure(
+        bos_id="x",
+        direction="bullish",
+        timeframe="M5",
+        symbol="TEST",
+        broken_swing=None,
+        break_price=100.0,
+        breaking_candle=candle,
+        displacement_score=0.8,
+        created_at=candle.timestamp,
+        is_internal=False,
+    )
+    event = BOSEvent(bos=bos)
+
+    main_module.log_setup(event, "TEST", "M5")
+    main_module.log_setup(event, "TEST", "M5")
+
+    records = json.loads(path.read_text())
+    assert len(records) == 2
+    assert records[0]["symbol"] == "TEST"
+    assert records[0]["event_type"] == "BOS_CONFIRMED"
+    assert "Break of Structure" in records[0]["description"]
+
+
+def test_log_setup_caps_at_max_logged(tmp_path, monkeypatch):
+    path = tmp_path / "setups.json"
+    monkeypatch.setattr(main_module, "SETUPS_PATH", path)
+    monkeypatch.setattr(main_module, "MAX_LOGGED_SETUPS", 3)
+
+    candle = _breakout_candle()
+    from engine.rules.bos import BreakOfStructure
+
+    for i in range(5):
+        bos = BreakOfStructure(
+            bos_id=str(i),
+            direction="bullish",
+            timeframe="M5",
+            symbol="TEST",
+            broken_swing=None,
+            break_price=100.0,
+            breaking_candle=candle,
+            displacement_score=0.8,
+            created_at=candle.timestamp,
+            is_internal=False,
+        )
+        main_module.log_setup(BOSEvent(bos=bos), "TEST", "M5")
+
+    records = json.loads(path.read_text())
+    assert len(records) == 3
 
 
 def test_write_status_writes_expected_json(tmp_path, monkeypatch):

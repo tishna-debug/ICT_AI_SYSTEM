@@ -36,6 +36,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from alerts.telegram_bot import TelegramNotifier
 from engine.ai_evaluator import AIEvaluator, Verdict, log_verdict
 from engine.context_layer import ContextLayerProvider, build_context_summary, classify_volatility, detect_fomo_risk, get_fear_greed_index
+from engine.event_narration import describe_event
 from engine.logging_config import get_logger
 from engine.mt5_bridge import (
     MT5CandleFeed,
@@ -68,6 +69,8 @@ BACKFILL_CANDLES = 100
 POLL_INTERVAL_SECONDS = 5
 
 STATUS_PATH = Path(__file__).resolve().parent / "data" / "status.json"
+SETUPS_PATH = Path(__file__).resolve().parent / "data" / "setups.json"
+MAX_LOGGED_SETUPS = 500  # cap so the file doesn't grow unbounded over a long-running session
 
 # Which events get pushed to Telegram at all - swing point confirmations
 # and partial FVG touches are too frequent/low-signal to text a phone
@@ -81,7 +84,7 @@ SETUP_EVENTS = (BOSEvent, CHOCHEvent)
 
 def write_status(state: str, detail: str = "") -> None:
     """Master Doc Section 7: data/status.json is the heartbeat file the
-    dashboard (once built) reads to show Running/Stopped/Crashed.
+    dashboard reads to show Running/Stopped/Crashed.
     """
     payload = {
         "state": state,  # "RUNNING" | "STOPPED" | "CRASHED"
@@ -96,6 +99,40 @@ def write_status(state: str, detail: str = "") -> None:
             json.dump(payload, f, indent=2)
     except Exception:
         logger.exception("Failed to write status heartbeat (non-fatal, continuing).")
+
+
+def log_setup(event: object, symbol: str, timeframe: str) -> None:
+    """Master Doc folder structure: data/setups.json - "Active & historic
+    ICT setup signals." Appends every alert-worthy event (FVG creation,
+    BOS, CHOCH, sweep), independent of whether it went on to an AI
+    verdict, so the dashboard has a full record of what the rule engine
+    actually detected. Capped at MAX_LOGGED_SETUPS (oldest dropped first)
+    so this doesn't grow forever across a long-running session.
+    """
+    record = {
+        "event_type": getattr(event, "event_type", type(event).__name__),
+        "description": describe_event(event),
+        "symbol": symbol,
+        "timeframe": timeframe,
+        "logged_at": datetime.now(timezone.utc).isoformat(),
+    }
+
+    try:
+        SETUPS_PATH.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            with open(SETUPS_PATH, "r", encoding="utf-8") as f:
+                content = f.read().strip()
+                records = json.loads(content) if content else []
+        except FileNotFoundError:
+            records = []
+
+        records.append(record)
+        records = records[-MAX_LOGGED_SETUPS:]
+
+        with open(SETUPS_PATH, "w", encoding="utf-8") as f:
+            json.dump(records, f, indent=2)
+    except Exception:
+        logger.exception("Failed to log setup to data/setups.json (non-fatal, continuing).")
 
 
 def build_structure_summary(engine: StructureStateEngine) -> str:
@@ -178,6 +215,7 @@ class TradingOrchestrator:
         for event in result.events:
             if isinstance(event, ALERT_WORTHY_EVENTS):
                 self.telegram.notify_event(event)
+                log_setup(event, self.symbol, tf)
 
             if tf == self.entry_timeframe and isinstance(event, SETUP_EVENTS):
                 self._handle_setup(event, candle)
