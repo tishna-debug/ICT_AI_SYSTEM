@@ -134,15 +134,26 @@ Full design docs (keep these next to this folder, don't lose them):
     with the higher-timeframe bias, asks Claude for a verdict — now
     weighing volatility, FOMO risk, and (if step 13 is set up) news/
     sentiment too — and sends it to your phone. Everything else (raw
-    signal alerts, heartbeat file at `data/status.json`, verdict log at
-    `data/verdicts.json`) happens automatically. Stop it any time with
-    **Ctrl+C**.
+    signal alerts, heartbeat file at `data/status.json`, setup log at
+    `data/setups.json`, verdict log at `data/verdicts.json`) happens
+    automatically. Stop it any time with **Ctrl+C**.
+15. **Watch it in the dashboard (optional — needs `main.py` running in
+    another terminal first):**
+    ```
+    streamlit run interface/dashboard.py
+    ```
+    Opens in your browser (usually http://localhost:8501). Shows whether
+    the system is currently running, every AI verdict with its full
+    reasoning, every detected setup, and recent log activity — all
+    read-only, refreshed on demand or automatically every 10 seconds if
+    you check the box. It never controls `main.py`, only displays what
+    it's already written to the `data/` files.
 
 Nothing above touches real money or places a trade. Steps 9-10 and 14
 talk to your MT5 terminal only to read prices. Step 11 (and 14's alerts)
 only send messages to your own Telegram chat. Step 12 (and 14's verdicts)
 only ask Claude for a written opinion — nothing ever acts on it. Step 13
-only reads public news headlines.
+only reads public news headlines. Step 15 only reads local files.
 
 ---
 
@@ -203,11 +214,19 @@ rulebook exactly:
   confirm your FMP key works
 - `main.py` — the always-on orchestrator: MT5 candles in, multi-timeframe
   rule engine, Kill Zone + HTF Bias Cascade gating, context layer, AI
-  verdicts and Telegram alerts out (see "First-time setup" step 14 above)
-- `tests/` — automated test suite (`pytest`), 106 tests covering every rule above
+  verdicts and Telegram alerts out, plus setup/verdict logging to
+  `data/setups.json`/`data/verdicts.json` (see "First-time setup" step 14
+  above)
+- `interface/dashboard.py` — local Streamlit dashboard (Build Step 5):
+  read-only view of system status, AI verdicts, detected setups, and
+  recent logs, all pulled from the same `data/`/`logs/` files `main.py`
+  already writes (see "First-time setup" step 15 above)
+- `tests/` — automated test suite (`pytest`), 114 tests covering every rule above
 
-**Stubs only** — intentionally not built yet, per the Master Doc's build order:
-- `interface/dashboard.py` — Streamlit dashboard (Build Step 5)
+All Phase 1 + Build Steps 1-5 are now implemented. What's left is Phase 2
+ICT concepts (Order Blocks, Breaker Blocks, OTE, Judas Swing, Power of
+Three — see the Master Doc Section 4.12) and any further polish, both
+optional/future work rather than a required next step.
 
 **Known open item:** the Phase 1 rulebook's own Liquidity Sweep recovery-ratio
 formula (Section 7.2) is structurally unable to produce a "MESSY" sweep
