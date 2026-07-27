@@ -16,8 +16,11 @@ MetaTrader5==5.0.4993
 # one-way alerts, no extra package needed. python-dotenv below reads
 # TELEGRAM_BOT_TOKEN/TELEGRAM_CHAT_ID from .env.
 
-# Build Step 3: Claude API
-anthropic==0.34.2
+# Build Step 3: Claude API. Pinned to a current release - 0.34.2 (the
+# original pin) breaks on install: its bundled httpx usage passes a
+# `proxies` kwarg that newer httpx versions removed entirely, so
+# anthropic.Anthropic(...) throws a TypeError before ever making a call.
+anthropic==0.120.0
 
 # Build Step 4: context layer (news/sentiment) — add specific packages
 # once you pick providers
