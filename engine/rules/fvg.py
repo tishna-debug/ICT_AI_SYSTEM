@@ -16,9 +16,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Optional
+from typing import List, Optional
 
-from engine.rules.base import Candle, displacement_score, is_displaced
+from engine.rules.base import ATR_PERIOD, Candle, atr, displacement_score, is_displaced
 
 # FVG (Phase 1, Section 0)
 MIN_FVG_TICKS = 3                       # Minimum gap size in ticks
@@ -303,3 +303,18 @@ def update_fvg(
         return FVGMitigatedEvent(fvg=fvg, mitigation_type="PARTIAL", mitigation_candle=candle)
 
     return None
+
+
+def compute_atr_baseline(candles: List[Candle]) -> Optional[float]:
+    """Rolling ATR(14) average over the last ATR_BASELINE_PERIOD candles -
+    the volatility baseline fvg_fill_threshold() needs. Only looks at a
+    bounded recent window, not the full history, so this stays cheap to
+    call on every new candle even in a long-running live session.
+    """
+    window = candles[-(ATR_BASELINE_PERIOD + ATR_PERIOD):]
+    values = []
+    for i in range(ATR_PERIOD, len(window)):
+        v = atr(window[: i + 1], ATR_PERIOD)
+        if v is not None:
+            values.append(v)
+    return sum(values) / len(values) if values else None

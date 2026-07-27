@@ -30,15 +30,14 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
-from typing import List, Optional
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from engine.event_bus import EventBus
 from engine.event_narration import describe_event
 from engine.mt5_bridge import MT5CandleFeed, MT5NotAvailableError, connect, disconnect, fetch_recent_candles, get_tick_size, run_feed
-from engine.rules.base import ATR_PERIOD, Candle, atr
-from engine.rules.fvg import ATR_BASELINE_PERIOD
+from engine.rules.base import Candle
+from engine.rules.fvg import compute_atr_baseline
 from engine.rules.structure_state import StructureStateEngine, replay
 
 # --- Edit these two to watch something else ---
@@ -48,21 +47,6 @@ TIMEFRAME = "M5"
 
 BACKFILL_CANDLES = 100      # history to load first, so ATR/swings are ready immediately
 POLL_INTERVAL_SECONDS = 5   # how often to check MT5 for a newly closed candle
-
-
-def compute_atr_avg50(candles: List[Candle]) -> Optional[float]:
-    """Rolling ATR(14) average over the last ATR_BASELINE_PERIOD candles
-    (Addendum A's volatility baseline for FVG confidence scoring). Only
-    looks at a bounded recent window, not the full history, so this stays
-    cheap to call on every new candle even in a long-running session.
-    """
-    window = candles[-(ATR_BASELINE_PERIOD + ATR_PERIOD):]
-    values = []
-    for i in range(ATR_PERIOD, len(window)):
-        v = atr(window[: i + 1], ATR_PERIOD)
-        if v is not None:
-            values.append(v)
-    return sum(values) / len(values) if values else None
 
 
 def print_state_summary(engine: StructureStateEngine) -> None:
@@ -120,7 +104,7 @@ def main() -> int:
     feed = MT5CandleFeed(SYMBOL, TIMEFRAME, last_seen_timestamp=history[-1].timestamp)
 
     def on_new_candle(_feed: MT5CandleFeed, candle: Candle) -> None:
-        atr_avg50 = compute_atr_avg50(engine.candles + [candle])
+        atr_avg50 = compute_atr_baseline(engine.candles + [candle])
         outcome = engine.process_candle(candle, atr_avg50=atr_avg50)
         if outcome.rejected:
             print(f"  [{candle.timestamp:%H:%M}] REJECTED (bad data): {outcome.rejection_reasons}")
