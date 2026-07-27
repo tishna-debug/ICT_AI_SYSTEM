@@ -7,6 +7,7 @@ tests/test_telegram_bot.py avoid live external calls.
 import json
 import os
 
+import engine.ai_evaluator as ai_evaluator
 from engine.ai_evaluator import AIEvaluator, log_verdict
 from engine.rules.bos import BOSEvent, BreakOfStructure
 from engine.rules.swings import SwingPointEvent
@@ -32,6 +33,9 @@ def _sample_bos_event(mk_candle):
 
 
 def test_not_configured_returns_no_trade_fallback(monkeypatch, mk_candle):
+    # See tests/test_telegram_bot.py for why load_dotenv() needs stubbing
+    # here too - it re-reads any real .env file regardless of delenv.
+    monkeypatch.setattr(ai_evaluator, "load_dotenv", lambda *a, **k: None)
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
     evaluator = AIEvaluator(api_key=None, transport=lambda p, k, m: "{}")
 
