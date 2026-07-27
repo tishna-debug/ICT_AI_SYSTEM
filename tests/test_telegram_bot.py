@@ -4,11 +4,17 @@ transport is always injected, matching how tests/test_mt5_bridge.py
 avoids a live MT5 connection.
 """
 
+import alerts.telegram_bot as telegram_bot
 from alerts.telegram_bot import TelegramNotifier
 from engine.rules.structure_state import replay
 
 
 def test_not_configured_without_credentials(monkeypatch):
+    # TelegramNotifier.__init__ calls load_dotenv(), which re-reads any
+    # real .env file on disk regardless of delenv below - stub it out so
+    # this test is deterministic even in a folder with a real .env
+    # (otherwise it only "passes" by accident when no .env exists yet).
+    monkeypatch.setattr(telegram_bot, "load_dotenv", lambda *a, **k: None)
     monkeypatch.delenv("TELEGRAM_BOT_TOKEN", raising=False)
     monkeypatch.delenv("TELEGRAM_CHAT_ID", raising=False)
 
