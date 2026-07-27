@@ -93,16 +93,32 @@ Full design docs (keep these next to this folder, don't lose them):
       python scripts/test_telegram.py
       ```
       You should get a message on Telegram within a few seconds.
+12. **Set up AI verdicts (optional, Build Step 3 — costs a small amount
+    per API call, roughly $5-15/month total since it's only called on
+    confirmed setups, never on every candle):**
+    - Get an API key at https://console.anthropic.com (you'll need to add
+      a payment method there — that's between you and Anthropic, not
+      something this code touches).
+    - Add it to `.env`:
+      ```
+      ANTHROPIC_API_KEY=sk-ant-...
+      ```
+    - Test it:
+      ```
+      python scripts/test_ai_evaluator.py
+      ```
+      This sends one sample setup to Claude and prints back a Buy/Sell/
+      No-Trade verdict with reasoning — confirms your key and billing work.
 
 Note: `main.py` (the script that will eventually tie the live price feed,
-the rule engine, and Telegram alerts together into one always-on process)
-is still an empty placeholder — that's expected at this stage, not a bug.
-`engine/ai_evaluator.py` (Build Step 3, AI verdicts) comes before that
-gets wired up.
+the rule engine, Telegram alerts, and AI verdicts together into one
+always-on process) is still an empty placeholder — that's expected at
+this stage, not a bug.
 
-Nothing above touches real money. Steps 9-10 talk to your MT5 terminal,
-but only to read prices — no order is ever sent. Step 11 only sends
-messages to your own Telegram chat.
+Nothing above touches real money or places a trade. Steps 9-10 talk to
+your MT5 terminal only to read prices. Step 11 only sends messages to
+your own Telegram chat. Step 12 only asks Claude for a written opinion —
+it never acts on it.
 
 ---
 
@@ -110,7 +126,7 @@ messages to your own Telegram chat.
 
 **Already implemented** (real code, not placeholders), matching the
 rulebook exactly:
-- `engine/rules/base.py` — Candle model, data quality validation, ATR(14), Displacement
+- `engine/rules/base.py` — Candle model, data quality validation, ATR(14), Displacement, Kill Zone filter (Addendum A)
 - `engine/rules/swings.py` — Swing Point detection (high/low, strength, MAJOR/MINOR degree)
 - `engine/rules/fvg.py` — Fair Value Gap detection + mitigation + Addendum A confidence scoring
 - `engine/rules/bos.py` — Break of Structure + TrendState machine
@@ -140,12 +156,21 @@ rulebook exactly:
   in `.env`, never in code — see "First-time setup" step 11 above.
 - `scripts/test_telegram.py` — sends a test message to confirm your
   Telegram setup works
-- `tests/` — automated test suite (`pytest`), 66 tests covering every rule above
+- `engine/rules/bias_cascade.py` — HTF Bias Cascade (Addendum A): checks
+  whether an entry-timeframe setup aligns with the Daily→4H→1H→15M trend
+  (or the D→1H→15M fallback), and gates AI calls to only Kill-Zone-aligned,
+  bias-confirmed setups
+- `engine/ai_evaluator.py` — turns a confirmed setup into a Buy/Sell/
+  No-Trade verdict with written reasoning via the Claude API (Build Step
+  3). Never places a trade — only produces a recommendation for you to
+  read. Logs every verdict to `data/verdicts.json`.
+- `scripts/test_ai_evaluator.py` — sends one sample setup to Claude and
+  prints the verdict, to confirm your API key/billing work
+- `tests/` — automated test suite (`pytest`), 88 tests covering every rule above
 
 **Stubs only** — intentionally not built yet, per the Master Doc's build order:
-- `engine/rules/bias_cascade.py` — HTF Bias Cascade (Addendum A)
-- `engine/ai_evaluator.py` — Claude API verdicts (Build Step 3)
 - `interface/dashboard.py` — Streamlit dashboard (Build Step 5)
+- `main.py` — the always-on orchestrator tying the above modules together
 
 **Known open item:** the Phase 1 rulebook's own Liquidity Sweep recovery-ratio
 formula (Section 7.2) is structurally unable to produce a "MESSY" sweep

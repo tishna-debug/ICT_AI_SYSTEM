@@ -4,7 +4,7 @@
 
 **Owner:** Non-technical trader/operator. Does not write or manage code, servers, or databases directly. All technical work is delegated.
 
-**Status:** `engine/rules/` (all Phase 1 ICT concepts), `engine/mt5_bridge.py` (live price connection), and `alerts/telegram_bot.py` (Telegram alerts) are built and tested. Next: `engine/ai_evaluator.py` (Build Step 3). This document is the anchor for every future update.
+**Status:** `engine/rules/` (all Phase 1 ICT concepts + Addendum A's Kill Zone filter and HTF Bias Cascade), `engine/mt5_bridge.py` (live price connection), `alerts/telegram_bot.py` (Telegram alerts), and `engine/ai_evaluator.py` (Claude API verdicts) are all built and tested. Next: `main.py` (tying it all together into one always-on process), then `interface/dashboard.py` (Build Step 5). This document is the anchor for every future update.
 
 ---
 
@@ -107,7 +107,7 @@ Answers "should I trust this setup right now?" — sits alongside the ICT rule l
 | Fear & Greed level | Public index (free) | Contextual input, not a hard veto |
 | FOMO/crowd behavior risk | Derived heuristic (rapid extension + volume spike + sentiment extreme together) | Flags a setup as "technically valid but high FOMO risk" |
 
-**Status:** Defined conceptually; implemented in `engine/ai_evaluator.py` — this is Build Step 3, after the rule engine and Telegram alerts are proven (see Section 9).
+**Status:** Defined conceptually, not yet implemented (Build Step 4). `engine/ai_evaluator.py` itself (the core Buy/Sell/No-Trade verdict + reasoning engine) is built and tested - it just doesn't factor in news/volatility/sentiment/Fear & Greed/FOMO yet. Those get wired in as this step's own build task, once picked providers are chosen (see requirements.txt).
 
 ---
 
