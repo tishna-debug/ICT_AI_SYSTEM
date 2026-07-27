@@ -58,14 +58,18 @@ project/
 │   └── price_logs/            # Local OHLC cache for offline backtesting
 ├── engine/
 │   ├── __init__.py
-│   ├── mt5_bridge.py          # Live MT5 tick connection & candle extraction
+│   ├── mt5_bridge.py          # Live MT5 price connection & candle extraction (read-only, no trading)
+│   ├── event_bus.py           # Synchronous pub/sub for engine/rules/ events
+│   ├── logging_config.py      # Shared logger (writes to logs/) every module reuses
 │   ├── rules/
 │   │   ├── __init__.py
-│   │   ├── base.py            # Candle dataclass, data quality checks, 14-ATR calc, Kill Zone filter
+│   │   ├── base.py            # Candle dataclass, data quality checks, 14-ATR calc, displacement, Kill Zone filter
+│   │   ├── swings.py          # Swing high/low detection
 │   │   ├── fvg.py
 │   │   ├── bos.py
 │   │   ├── choch.py
 │   │   ├── liquidity_sweep.py
+│   │   ├── structure_state.py # Master StructureState assembly + snapshot/replay
 │   │   └── bias_cascade.py
 │   └── ai_evaluator.py        # Anthropic Claude API prompt runner & risk evaluator
 ├── alerts/
@@ -78,9 +82,14 @@ project/
 ├── scripts/
 │   ├── setup_environment.py   # One-click directory & file builder
 │   ├── test_mt5.py             # Diagnostic script to verify MT5 connection
+│   ├── demo_run.py             # Plain-English demo of the rule engine on made-up sample data
+│   ├── validation_harness.py  # Section 9 precision/recall/F1 scoring against hand-labeled charts
 │   └── backup_system.py       # Zips project (excluding .env), prunes old backups
+├── tests/                       # pytest suite - run with `pytest`
 ├── requirements.txt
-├── .env                         # ANTHROPIC_API_KEY, TELEGRAM_BOT_TOKEN, MT5 credentials — never shared
+├── .env                         # ANTHROPIC_API_KEY, TELEGRAM_BOT_TOKEN — never shared. No MT5
+│                                 # credentials here: mt5_bridge.py attaches to a terminal you're
+│                                 # already logged into by hand, on purpose (see Section 6 below)
 ├── .env.example
 ├── .gitignore
 ├── README.md
@@ -210,12 +219,13 @@ Lives in `engine/ai_evaluator.py` — build only after the rule engine and Teleg
 
 ## 6. Build order — do not skip or reorder
 
-1. **`engine/rules/`** — all ICT detection modules (Candle → ATR → Displacement → Swing → FVG → BOS/TrendState → CHOCH → Sweep → StructureState → event bus → replay/validation harness), tested against historical MT5 data. No AI, no interface yet.
-2. **`alerts/telegram_bot.py`** — raw rule-based signals to the owner's phone, to validate rule accuracy in the real world before adding AI cost.
-3. **`engine/ai_evaluator.py`** — Anthropic API Buy/Sell/No-Trade verdict + reasoning, called only on confirmed setups.
-4. **Context layer** — news, volatility, sentiment, Fear & Greed, FOMO feeding into the verdict.
-5. **`interface/dashboard.py`** — Streamlit, built last, once the underlying signal is proven.
-6. **(Later, optional)** Expand instruments, add Phase 2 ICT concepts, revisit database only if scale genuinely requires it.
+1. ✅ **`engine/rules/`** — all ICT detection modules (Candle → ATR → Displacement → Swing → FVG → BOS/TrendState → CHOCH → Sweep → StructureState → event bus → replay/validation harness). Built and tested (58 automated tests, `pytest`). No AI, no interface yet.
+2. ✅ **`engine/mt5_bridge.py`** — live price connection. Attaches to an MT5 terminal you're already logged into by hand (no credentials stored anywhere); read-only, never places a trade. Diagnostic: `scripts/test_mt5.py`.
+3. **`alerts/telegram_bot.py`** *(next)* — raw rule-based signals to the owner's phone, to validate rule accuracy in the real world before adding AI cost.
+4. **`engine/ai_evaluator.py`** — Anthropic API Buy/Sell/No-Trade verdict + reasoning, called only on confirmed setups.
+5. **Context layer** — news, volatility, sentiment, Fear & Greed, FOMO feeding into the verdict.
+6. **`interface/dashboard.py`** — Streamlit, built last, once the underlying signal is proven.
+7. **(Later, optional)** Expand instruments, add Phase 2 ICT concepts, revisit database only if scale genuinely requires it.
 
 ### Validation benchmarks (must pass before moving to the next concept)
 | Concept | Required precision | Test count |
