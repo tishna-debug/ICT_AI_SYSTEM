@@ -15,6 +15,7 @@ import main as main_module
 from alerts.telegram_bot import TelegramNotifier
 from engine.ai_evaluator import AIEvaluator
 from engine.context_layer import ContextLayerProvider
+from engine.desktop_notifier import DesktopNotifier
 from engine.mt5_bridge import MT5CandleFeed
 from engine.rules.base import Candle, KillZoneEvent
 from engine.rules.bias_cascade import BiasCascadeEvent
@@ -89,7 +90,7 @@ def _breakout_candle(timestamp=None):
     )
 
 
-def _orchestrator(mk_candle, telegram, ai, htf_trend="BULLISH"):
+def _orchestrator(mk_candle, telegram, ai, htf_trend="BULLISH", desktop=None):
     candles = _sample_candles(mk_candle)
     entry_engine, _ = replay(candles, symbol="TEST", timeframe="M5", tick_size=0.01, atr_avg50=1.0)
 
@@ -99,8 +100,13 @@ def _orchestrator(mk_candle, telegram, ai, htf_trend="BULLISH"):
     # tests/test_telegram_bot.py's load_dotenv() issue).
     context = ContextLayerProvider(api_key=None, transport=lambda url: (_ for _ in ()).throw(AssertionError("should not call FMP in tests")))
 
+    # Never let a real desktop toast fire during a test run - default to a
+    # disabled notifier unless a test explicitly injects one to inspect.
+    if desktop is None:
+        desktop = DesktopNotifier(transport=lambda title, body: (_ for _ in ()).throw(AssertionError("should not fire a real toast in tests")), enabled=False)
+
     orch = main_module.TradingOrchestrator(
-        symbol="TEST", entry_timeframe="M5", tick_size=0.01, telegram=telegram, ai=ai, context=context
+        symbol="TEST", entry_timeframe="M5", tick_size=0.01, telegram=telegram, ai=ai, context=context, desktop=desktop
     )
     orch.engines["M5"] = entry_engine
     for tf in main_module.HTF_TIMEFRAMES:
@@ -215,8 +221,11 @@ def test_on_candle_alerts_telegram_for_bos_and_evaluates_setup(mk_candle, tmp_pa
 
     ai = AIEvaluator(api_key="sk-test", transport=fake_transport)
 
+    desktop_calls = []
+    desktop = DesktopNotifier(transport=lambda title, body: desktop_calls.append((title, body)))
+
     # in NY Kill Zone (14:00 UTC -> 09:00 EST in winter) + HTF all bullish -> eligible
-    orch = _orchestrator(mk_candle, telegram, ai, htf_trend="BULLISH")
+    orch = _orchestrator(mk_candle, telegram, ai, htf_trend="BULLISH", desktop=desktop)
     orch.on_candle(_feed("M5"), _breakout_candle(timestamp=datetime(2026, 1, 2, 14, 0)))
 
     bos_alerts = [p for p in sent if "text" in p and "Break of Structure" in p["text"]]
@@ -227,6 +236,8 @@ def test_on_candle_alerts_telegram_for_bos_and_evaluates_setup(mk_candle, tmp_pa
     assert len(ai_calls) == 1
     assert len(logged) == 1
     assert logged[0].verdict == "BUY"
+    assert len(desktop_calls) == 1
+    assert "BUY" in desktop_calls[0][0]
 
 
 def test_on_candle_skips_ai_when_outside_kill_zone(mk_candle):

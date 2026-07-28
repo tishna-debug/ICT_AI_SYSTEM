@@ -8,7 +8,9 @@ timeframe's engine and pushes alert-worthy events to Telegram. Whenever
 the ENTRY timeframe confirms a Break of Structure or Change of Character
 (a "setup"), it's checked against the Kill Zone filter and HTF Bias
 Cascade (Addendum A) - only if BOTH pass does it get sent to Claude for a
-Buy/Sell/No-Trade verdict, which also gets logged and Telegraphed.
+Buy/Sell/No-Trade verdict, which also gets logged, Telegraphed, and
+raised as a native Windows desktop notification (a second, more reliable
+alert channel - see engine/desktop_notifier.py).
 
 READ-ONLY / ADVISORY ONLY: nothing in this file (or anything it imports)
 places, modifies, or closes a trade. It only detects, reasons about, and
@@ -36,6 +38,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from alerts.telegram_bot import TelegramNotifier
 from engine.ai_evaluator import AIEvaluator, Verdict, log_verdict
 from engine.context_layer import ContextLayerProvider, build_context_summary, classify_volatility, detect_fomo_risk, get_fear_greed_index
+from engine.desktop_notifier import DesktopNotifier
 from engine.event_narration import describe_event
 from engine.logging_config import get_logger
 from engine.mt5_bridge import (
@@ -173,6 +176,7 @@ class TradingOrchestrator:
         telegram: Optional[TelegramNotifier] = None,
         ai: Optional[AIEvaluator] = None,
         context: Optional[ContextLayerProvider] = None,
+        desktop: Optional[DesktopNotifier] = None,
     ):
         self.symbol = symbol
         self.entry_timeframe = entry_timeframe
@@ -181,6 +185,7 @@ class TradingOrchestrator:
         self.telegram = telegram or TelegramNotifier()
         self.ai = ai or AIEvaluator()
         self.context = context or ContextLayerProvider()
+        self.desktop = desktop or DesktopNotifier()
 
         self.engines: Dict[str, StructureStateEngine] = {}
         self.feeds: Dict[str, MT5CandleFeed] = {}
@@ -251,6 +256,7 @@ class TradingOrchestrator:
 
         message = f"AI VERDICT: {verdict.verdict} ({verdict.confidence} confidence)\n\n{verdict.reasoning}"
         self.telegram.send(message)
+        self.desktop.notify_verdict(verdict)
         return verdict
 
     def _build_context_summary(self, entry_engine: StructureStateEngine) -> str:
@@ -316,14 +322,17 @@ def main() -> int:
     print("Warm-up complete. Watching live - press Ctrl+C to stop.\n")
 
     write_status("RUNNING", "started")
+    orchestrator.desktop.notify("ICT AI Trading System", f"Started - watching {SYMBOL} {ENTRY_TIMEFRAME}.")
     try:
         orchestrator.run()
     except KeyboardInterrupt:
         print("\n\nStopped by you.")
         write_status("STOPPED", "stopped by user")
+        orchestrator.desktop.notify("ICT AI Trading System", "Stopped.")
     except Exception as e:
         logger.exception("Unhandled error in main loop.")
         write_status("CRASHED", str(e))
+        orchestrator.desktop.notify("ICT AI Trading System", f"Crashed: {e}")
         raise
     finally:
         disconnect()

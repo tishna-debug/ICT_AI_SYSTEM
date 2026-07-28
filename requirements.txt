@@ -28,5 +28,11 @@ anthropic==0.120.0
 # Build Step 5: dashboard
 streamlit==1.38.0
 
+# Native Windows desktop toast notifications for AI verdicts (a second,
+# more reliable alert channel alongside Telegram). Confirmed non-blocking
+# (~30ms) via its notify() function - important since it fires from
+# main.py's live polling loop, which must never be delayed by a UI popup.
+win11toast==0.36.3
+
 # Config / secrets
 python-dotenv==1.0.1
