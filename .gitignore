@@ -1,6 +1,11 @@
 # Secrets — never upload
 .env
 
+# Virtual environment — reproducible via `pip install -r requirements.txt`,
+# never worth tracking (was accidentally committed early on; see CLAUDE.md)
+venv/
+.venv/
+
 # Logs and backups — local only
 logs/
 backups/
