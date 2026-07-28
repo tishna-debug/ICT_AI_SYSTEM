@@ -151,7 +151,10 @@ Full design docs (keep these next to this folder, don't lose them):
     reasoning, every detected setup, and recent log activity — all
     read-only, refreshed on demand or automatically every 10 seconds if
     you check the box. It never controls `main.py`, only displays what
-    it's already written to the `data/` files.
+    it's already written to the `data/` files. All timestamps shown are in
+    New York time (the timezone ICT Kill Zones are organized around),
+    correctly adjusted for daylight saving — everything is still stored in
+    UTC underneath, this is a display-only conversion.
 16. **Back up the project (optional, any time):**
     ```
     python scripts/backup_system.py
