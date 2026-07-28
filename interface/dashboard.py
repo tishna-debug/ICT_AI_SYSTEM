@@ -22,6 +22,7 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import List, Optional
+from zoneinfo import ZoneInfo
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
@@ -32,6 +33,46 @@ STATUS_PATH = PROJECT_ROOT / "data" / "status.json"
 SETUPS_PATH = PROJECT_ROOT / "data" / "setups.json"
 VERDICTS_PATH = PROJECT_ROOT / "data" / "verdicts.json"
 LOGS_DIR = PROJECT_ROOT / "logs"
+
+# All timestamps in data/*.json are stored in UTC (matching Candle's own
+# "UTC close time" convention throughout engine/rules/) - this dashboard
+# displays them in New York time instead, since that's the timezone ICT
+# trading itself is organized around (Kill Zones are NY/London sessions).
+# Uses the IANA zone rather than a fixed UTC-4/-5 offset so it stays
+# correct across the EST/EDT daylight-saving switch automatically - the
+# same approach engine/rules/base.py's Kill Zone filter already uses.
+NEW_YORK = ZoneInfo("America/New_York")
+
+
+def to_new_york(dt: datetime) -> datetime:
+    """Converts a datetime to New York local time. A naive datetime (no
+    tzinfo) is assumed to already be UTC, matching how every timestamp in
+    this project is written.
+    """
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(NEW_YORK)
+
+
+def parse_iso(value: Optional[str]) -> Optional[datetime]:
+    if not value:
+        return None
+    try:
+        return datetime.fromisoformat(value)
+    except ValueError:
+        return None
+
+
+def format_ny(value: Optional[str], fmt: str) -> str:
+    """Parses a stored UTC ISO timestamp string and formats it in New York
+    time. Returns the raw stored value unchanged if it can't be parsed,
+    rather than hiding a data problem behind a blank "-".
+    """
+    dt = parse_iso(value)
+    if dt is None:
+        return value or "-"
+    return to_new_york(dt).strftime(fmt)
+
 
 # If main.py's heartbeat says RUNNING but hasn't updated in this long,
 # something has silently died (crashed without hitting the except/finally
@@ -69,13 +110,12 @@ def render_status(status: Optional[dict]) -> None:
         return
 
     state = status.get("state", "UNKNOWN")
-    updated_at = None
-    if status.get("updated_at"):
-        try:
-            updated_at = datetime.fromisoformat(status["updated_at"])
-        except ValueError:
-            pass
+    updated_at = parse_iso(status.get("updated_at"))
 
+    # Staleness must be computed against the original (UTC) timestamp, not
+    # the New-York-converted one used for display below - astimezone()
+    # preserves the same instant, so this would work either way, but
+    # staying explicit here avoids relying on that.
     age_seconds = (datetime.now(timezone.utc) - updated_at).total_seconds() if updated_at else None
 
     if state == "RUNNING" and age_seconds is not None and age_seconds > STALE_HEARTBEAT_SECONDS:
@@ -92,7 +132,7 @@ def render_status(status: Optional[dict]) -> None:
     col1, col2, col3 = st.columns(3)
     col1.metric("Symbol", status.get("symbol", "-"))
     col2.metric("Entry timeframe", status.get("entry_timeframe", "-"))
-    col3.metric("Last update", updated_at.strftime("%H:%M:%S UTC") if updated_at else "-")
+    col3.metric("Last update (NY time)", to_new_york(updated_at).strftime("%H:%M:%S %Z") if updated_at else "-")
 
     if status.get("detail"):
         st.caption(status["detail"])
@@ -107,7 +147,8 @@ def render_verdicts(verdicts: Optional[list]) -> None:
     verdict_icon = {"BUY": "\U0001F7E2", "SELL": "\U0001F534", "NO_TRADE": "⚪"}
     for v in reversed(verdicts[-20:]):
         icon = verdict_icon.get(v.get("verdict"), "❓")
-        title = f"{icon} {v.get('verdict', '?')} ({v.get('confidence', '?')}) - {v.get('symbol', '?')} {v.get('timeframe', '?')} - {v.get('created_at', '?')}"
+        when = format_ny(v.get("created_at"), "%b %d, %I:%M:%S %p %Z")
+        title = f"{icon} {v.get('verdict', '?')} ({v.get('confidence', '?')}) - {v.get('symbol', '?')} {v.get('timeframe', '?')} - {when}"
         with st.expander(title):
             st.write(f"**Triggered by:** {v.get('triggered_by', '-')}")
             st.write(f"**Reasoning:** {v.get('reasoning', '-')}")
@@ -121,7 +162,7 @@ def render_setups(setups: Optional[list]) -> None:
 
     rows = [
         {
-            "Time": s.get("logged_at", "-"),
+            "Time (NY)": format_ny(s.get("logged_at"), "%b %d, %I:%M:%S %p %Z"),
             "Type": s.get("event_type", "-"),
             "Timeframe": s.get("timeframe", "-"),
             "Description": s.get("description", "-"),
