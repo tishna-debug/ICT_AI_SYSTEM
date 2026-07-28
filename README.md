@@ -133,10 +133,14 @@ Full design docs (keep these next to this folder, don't lose them):
     every confirmed setup that's both inside a valid Kill Zone and aligned
     with the higher-timeframe bias, asks Claude for a verdict — now
     weighing volatility, FOMO risk, and (if step 13 is set up) news/
-    sentiment too — and sends it to your phone. Everything else (raw
-    signal alerts, heartbeat file at `data/status.json`, setup log at
+    sentiment too — and sends it to your phone **and** pops up a native
+    Windows desktop notification (bottom-right corner) the instant a
+    verdict comes back — a second, more reliable alert channel, since it
+    doesn't depend on Telegram's network access at all. Everything else
+    (raw signal alerts, heartbeat file at `data/status.json`, setup log at
     `data/setups.json`, verdict log at `data/verdicts.json`) happens
-    automatically. Stop it any time with **Ctrl+C**.
+    automatically. Stop it any time with **Ctrl+C** (you'll get a "Stopped"
+    notification too, so you know it shut down cleanly).
 15. **Watch it in the dashboard (optional — needs `main.py` running in
     another terminal first):**
     ```
@@ -227,9 +231,13 @@ rulebook exactly:
   confirm your FMP key works
 - `main.py` — the always-on orchestrator: MT5 candles in, multi-timeframe
   rule engine, Kill Zone + HTF Bias Cascade gating, context layer, AI
-  verdicts and Telegram alerts out, plus setup/verdict logging to
-  `data/setups.json`/`data/verdicts.json` (see "First-time setup" step 14
-  above)
+  verdicts out to Telegram **and** a native desktop notification, plus
+  setup/verdict logging to `data/setups.json`/`data/verdicts.json` (see
+  "First-time setup" step 14 above)
+- `engine/desktop_notifier.py` — native Windows toast notifications for AI
+  verdicts, a second alert channel independent of Telegram's network
+  access. Confirmed non-blocking (~30ms) so it never delays the live
+  polling loop.
 - `interface/dashboard.py` — local Streamlit dashboard (Build Step 5):
   read-only view of system status, AI verdicts, detected setups, and
   recent logs, all pulled from the same `data/`/`logs/` files `main.py`
@@ -237,7 +245,7 @@ rulebook exactly:
 - `scripts/backup_system.py` — zips the project (excluding secrets and
   reproducible junk) into `backups/`, prunes old ones, optional second
   copy to a `CLOUD_BACKUP_FOLDER` (see "First-time setup" step 16 above)
-- `tests/` — automated test suite (`pytest`), 122 tests covering every rule above
+- `tests/` — automated test suite (`pytest`), 129 tests covering every rule above
 
 All Phase 1 + Build Steps 1-5 are now implemented. What's left is Phase 2
 ICT concepts (Order Blocks, Breaker Blocks, OTE, Judas Swing, Power of
