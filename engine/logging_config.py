@@ -16,9 +16,16 @@ from __future__ import annotations
 
 import logging
 import logging.handlers
+import os
 from pathlib import Path
 
-LOGS_DIR = Path(__file__).resolve().parent.parent / "logs"
+# Tests set ICT_LOGS_DIR (see tests/conftest.py) so pytest runs never
+# write into the real logs/ directory - without this, a live main.py
+# session's logs get interleaved with test noise (e.g. simulated
+# "MT5 hiccup" errors from tests/test_mt5_bridge.py showing up in
+# logs/mt5_bridge.log next to genuine connection errors), which makes the
+# real logs unreliable to read after running the test suite.
+LOGS_DIR = Path(os.environ.get("ICT_LOGS_DIR") or (Path(__file__).resolve().parent.parent / "logs"))
 MAX_LOG_BYTES = 2_000_000  # ~2MB per file before rotating
 BACKUP_COUNT = 3
 

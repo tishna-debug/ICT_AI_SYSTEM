@@ -6,6 +6,16 @@ keyword form, since most tests only care about a handful of OHLC values
 and a synthetic, evenly-spaced timestamp.
 """
 
+import os
+import tempfile
+
+# Must run before anything imports engine.logging_config (directly or
+# transitively via engine.mt5_bridge/alerts.telegram_bot/etc.), so every
+# logger created during this test session writes to a throwaway directory
+# instead of the real logs/ - otherwise pytest runs interleave test noise
+# into a live main.py session's real logs. See engine/logging_config.py.
+os.environ.setdefault("ICT_LOGS_DIR", tempfile.mkdtemp(prefix="ict_test_logs_"))
+
 from datetime import datetime, timedelta
 
 import pytest
